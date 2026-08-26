@@ -44,9 +44,9 @@ export class LocationSimulationService {
     };
   }
 
-  public async activateSystemLocationSpoofing(
+  public activateSystemLocationSpoofing(
     coordinates: GeographicCoordinates
-  ): Promise<SystemLocationSpoofingState> {
+  ): SystemLocationSpoofingState {
     this.setCoordinates(coordinates);
     this.spoofingState = {
       isActive: true,
@@ -56,28 +56,32 @@ export class LocationSimulationService {
 
     if (OnDeviceLocationModule && OnDeviceLocationModule.setLocation) {
       try {
-        await OnDeviceLocationModule.setLocation(
+        OnDeviceLocationModule.setLocation(
           coordinates.latitude,
           coordinates.longitude
         );
       } catch {}
     }
 
-    try {
-      await fetch(`${this.velticApiUrl}/set-location`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          latitude: coordinates.latitude,
-          longitude: coordinates.longitude
-        })
-      });
-    } catch {}
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 1200);
+
+    fetch(`${this.velticApiUrl}/set-location`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      signal: controller.signal,
+      body: JSON.stringify({
+        latitude: coordinates.latitude,
+        longitude: coordinates.longitude
+      })
+    })
+      .catch(() => {})
+      .finally(() => clearTimeout(timeoutId));
 
     return { ...this.spoofingState };
   }
 
-  public async resetSystemLocationSpoofing(): Promise<SystemLocationSpoofingState> {
+  public resetSystemLocationSpoofing(): SystemLocationSpoofingState {
     this.spoofingState = {
       isActive: false,
       activeCoordinates: null,
@@ -86,16 +90,20 @@ export class LocationSimulationService {
 
     if (OnDeviceLocationModule && OnDeviceLocationModule.resetLocation) {
       try {
-        await OnDeviceLocationModule.resetLocation();
+        OnDeviceLocationModule.resetLocation();
       } catch {}
     }
 
-    try {
-      await fetch(`${this.velticApiUrl}/reset-location`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" }
-      });
-    } catch {}
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 1200);
+
+    fetch(`${this.velticApiUrl}/reset-location`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      signal: controller.signal
+    })
+      .catch(() => {})
+      .finally(() => clearTimeout(timeoutId));
 
     return { ...this.spoofingState };
   }

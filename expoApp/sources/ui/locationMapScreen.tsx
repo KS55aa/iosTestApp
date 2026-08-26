@@ -47,7 +47,7 @@ export const LocationMapScreen: React.FC = () => {
         latitudeDelta: 0.008,
         longitudeDelta: 0.008
       };
-      mapRef.current?.animateToRegion(targetRegion, 1000);
+      mapRef.current?.animateToRegion(targetRegion, 800);
     } else {
       updateLocationMetadata(initialDefaultCoordinates);
     }
@@ -90,7 +90,7 @@ export const LocationMapScreen: React.FC = () => {
       longitudeDelta: 0.012
     };
 
-    mapRef.current?.animateToRegion(targetRegion, 800);
+    mapRef.current?.animateToRegion(targetRegion, 600);
   };
 
   const handleCenterOnMarker = (): void => {
@@ -100,7 +100,7 @@ export const LocationMapScreen: React.FC = () => {
       latitudeDelta: 0.008,
       longitudeDelta: 0.008
     };
-    mapRef.current?.animateToRegion(targetRegion, 500);
+    mapRef.current?.animateToRegion(targetRegion, 400);
   };
 
   const handleLocateMe = async (): Promise<void> => {
@@ -116,14 +116,14 @@ export const LocationMapScreen: React.FC = () => {
         latitudeDelta: 0.008,
         longitudeDelta: 0.008
       };
-      mapRef.current?.animateToRegion(targetRegion, 800);
+      mapRef.current?.animateToRegion(targetRegion, 600);
     }
   };
 
-  const handleToggleSpoofing = async (): Promise<void> => {
+  const handleToggleSpoofing = (): void => {
     if (!isSpoofingActive) {
-      await simulationService.activateSystemLocationSpoofing(currentCoordinates);
       setIsSpoofingActive(true);
+      simulationService.activateSystemLocationSpoofing(currentCoordinates);
 
       const targetRegion: Region = {
         latitude: currentCoordinates.latitude,
@@ -131,16 +131,16 @@ export const LocationMapScreen: React.FC = () => {
         latitudeDelta: 0.008,
         longitudeDelta: 0.008
       };
-      mapRef.current?.animateToRegion(targetRegion, 600);
+      mapRef.current?.animateToRegion(targetRegion, 500);
 
       Alert.alert(
-        "Standort aktiv gesetzt!",
-        `Dein Standort wurde erfolgreich auf ${locationInfo?.cityName || "die gewählte Position"} gesetzt.`
+        "Standort aktiv!",
+        `Dein Standort wurde auf ${locationInfo?.cityName || "die gewählte Position"} gesetzt.`
       );
     } else {
-      await simulationService.resetSystemLocationSpoofing();
       setIsSpoofingActive(false);
-      await handleLocateMe();
+      simulationService.resetSystemLocationSpoofing();
+      handleLocateMe();
 
       Alert.alert(
         "Standort zurückgesetzt",
