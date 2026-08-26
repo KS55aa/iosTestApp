@@ -11,6 +11,7 @@ import {
 import { initialDefaultCoordinates } from "../config/mapConfiguration";
 import { LocationSimulationService } from "../services/locationSimulationService";
 import { GeocodingService } from "../services/geocodingService";
+import { DeviceLocationService } from "../services/deviceLocationService";
 import { SearchLocationBar } from "./searchLocationBar";
 import { JoystickControlOverlay } from "./joystickControlOverlay";
 import { LocationDetailsModal } from "./locationDetailsModal";
@@ -25,6 +26,7 @@ export const LocationMapScreen: React.FC = () => {
   const mapRef = useRef<MapView>(null);
   const simulationService = LocationSimulationService.getInstance();
   const geocodingService = GeocodingService.getInstance();
+  const deviceLocationService = DeviceLocationService.getInstance();
 
   const updateLocationMetadata = useCallback(
     async (coords: GeographicCoordinates): Promise<void> => {
@@ -34,9 +36,28 @@ export const LocationMapScreen: React.FC = () => {
     [geocodingService]
   );
 
+  const initializeUserLocation = useCallback(async (): Promise<void> => {
+    const realLocation = await deviceLocationService.requestPermissionAndGetLocation();
+    if (realLocation) {
+      simulationService.setCoordinates(realLocation);
+      setCurrentCoordinates(realLocation);
+      updateLocationMetadata(realLocation);
+
+      const targetRegion: Region = {
+        latitude: realLocation.latitude,
+        longitude: realLocation.longitude,
+        latitudeDelta: 0.008,
+        longitudeDelta: 0.008
+      };
+      mapRef.current?.animateToRegion(targetRegion, 1000);
+    } else {
+      updateLocationMetadata(initialDefaultCoordinates);
+    }
+  }, [deviceLocationService, simulationService, updateLocationMetadata]);
+
   useEffect(() => {
-    updateLocationMetadata(initialDefaultCoordinates);
-  }, [updateLocationMetadata]);
+    initializeUserLocation();
+  }, [initializeUserLocation]);
 
   const handleMapPress = (coords: GeographicCoordinates): void => {
     simulationService.setCoordinates(coords);
@@ -96,17 +117,27 @@ export const LocationMapScreen: React.FC = () => {
     const targetRegion: Region = {
       latitude: currentCoordinates.latitude,
       longitude: currentCoordinates.longitude,
-      latitudeDelta: 0.012,
-      longitudeDelta: 0.012
+      latitudeDelta: 0.008,
+      longitudeDelta: 0.008
     };
     mapRef.current?.animateToRegion(targetRegion, 500);
   };
 
-  const handleCenterOnUserLocation = (): void => {
-    mapRef.current?.animateToUserLocation?.({
-      latitudeDelta: 0.012,
-      longitudeDelta: 0.012
-    });
+  const handleLocateMe = async (): Promise<void> => {
+    const realLocation = await deviceLocationService.requestPermissionAndGetLocation();
+    if (realLocation) {
+      simulationService.setCoordinates(realLocation);
+      setCurrentCoordinates(realLocation);
+      updateLocationMetadata(realLocation);
+
+      const targetRegion: Region = {
+        latitude: realLocation.latitude,
+        longitude: realLocation.longitude,
+        latitudeDelta: 0.008,
+        longitudeDelta: 0.008
+      };
+      mapRef.current?.animateToRegion(targetRegion, 800);
+    }
   };
 
   const toggleMapType = (): void => {
@@ -135,6 +166,7 @@ export const LocationMapScreen: React.FC = () => {
             longitudeDelta: 0.015
           }}
           showsUserLocation={true}
+          showsMyLocationButton={false}
           showsCompass={true}
           showsScale={true}
           showsBuildings={true}
@@ -168,7 +200,7 @@ export const LocationMapScreen: React.FC = () => {
 
           <TouchableOpacity
             style={styles.floatingIconButton}
-            onPress={handleCenterOnUserLocation}
+            onPress={handleLocateMe}
             activeOpacity={0.8}
           >
             <Text style={styles.floatingIconText}>📍</Text>

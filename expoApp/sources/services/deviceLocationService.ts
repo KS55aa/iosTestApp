@@ -1,3 +1,4 @@
+import * as Location from "expo-location";
 import { GeographicCoordinates } from "../models/locationTypes";
 
 export class DeviceLocationService {
@@ -12,10 +13,23 @@ export class DeviceLocationService {
     return DeviceLocationService.instance;
   }
 
-  public getFallbackCoordinates(): GeographicCoordinates {
-    return {
-      latitude: 52.516275,
-      longitude: 13.377704
-    };
+  public async requestPermissionAndGetLocation(): Promise<GeographicCoordinates | null> {
+    try {
+      const permissionResponse = await Location.requestForegroundPermissionsAsync();
+      if (permissionResponse.status !== "granted") {
+        return null;
+      }
+
+      const locationResult = await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.High
+      });
+
+      return {
+        latitude: locationResult.coords.latitude,
+        longitude: locationResult.coords.longitude
+      };
+    } catch {
+      return null;
+    }
   }
 }
