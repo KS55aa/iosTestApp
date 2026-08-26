@@ -4,14 +4,31 @@
     "slug": "expoApp",
     "version": "1.0.0",
     "orientation": "portrait",
-    "userInterfaceStyle": "automatic",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
     "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.testlab.expoApp",
       "infoPlist": {
-        "NSLocationWhenInUseUsageDescription": "Diese App benötigt Zugriff auf deinen Standort, um deine aktuelle Position auf Apple Maps anzuzeigen."
+        "NSLocationWhenInUseUsageDescription": "Diese App benötigt Zugriff auf deinen Standort, um deine aktuelle Position anzuzeigen und Standorte zu simulieren.",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "Diese App benötigt Zugriff auf deinen Standort im Hintergrund zur Standortsimulation.",
+        "UIBackgroundModes": ["location"]
       }
-    }
+    },
+    "plugins": [
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "Diese App benötigt Zugriff auf deinen Standort für die Kartennavigation."
+        }
+      ],
+      "./plugins/withOnDeviceLocation.js"
+    ]
   }
 }

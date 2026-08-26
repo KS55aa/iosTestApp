@@ -3,17 +3,11 @@
 ## A) Aktueller Projektstatus
 
 ### Vollständig umgesetzte Features
-- **Veltic Cloud Backend (`velticBackend/`) in 100 % TypeScript**:
-  - **Reines TypeScript & Node.js**: Kein Python erforderlich, kompiliert via `esbuild` zu einem hochperformanten Standalone-Server.
-  - **Veltic Managed PostgreSQL Database (`037c6c70-0222-49b0-ac75-8f8213ef6cfc`)**:
-    - Tabelle `favorites`: Speichert Lieblingsorte und globale Favoriten.
-    - Tabelle `active_simulations`: Speichert den aktiven Spoofing-Status und Zielkoordinaten.
-  - **Veltic REST API & DVT-Relay auf Port 8082**:
-    - `GET /health` (Healthcheck & DB-Status)
-    - `GET /api/favorites` (Laden von Cloud-Favoriten)
-    - `POST /api/favorites` (Erstellen neuer Cloud-Favoriten)
-    - `POST /set-location` (Systemweites Setzen von Fake-GPS in den iOS-Kernel)
-    - `POST /reset-location` (Zurücksetzen auf reales iPhone-GPS)
+- **On-Device Standalone Location Engine (`expoApp/plugins/withOnDeviceLocation.js`)**:
+  - **Direkte On-Device Standort-Simulation (`OnDeviceLocationModule.swift`)**: Native Swift- und Objective-C-Bridge zur direkten Standortmanipulation auf dem iPhone ohne zwingenden PC-Betrieb.
+  - **Dual-Mode Architektur**:
+    - *On-Device Mode:* Native Ausführung direkt auf dem iPhone via `CLLocationManager` & Loopback.
+    - *Cloud & Relay Mode:* Synchronisation mit Veltic PostgreSQL Cloud-Datenbank (`locationdb`).
 - **Location Changer mit nativer Apple Maps Engine & Standort-Dialog (`expoApp/`)**:
   - **100% Native Apple MapKit (`MKMapView`)**: Direkte Vektorkarten über Apple Server mit 3D-Gebäuden und nativer Gestensteuerung.
   - **Echter Apple Standort-Punkt (`showsUserLocation`)**: Automatische Berechtigungs-Abfrage via `expo-location` (`~19.0.8`) beim Start der App mit automatischem Kamera-Flug zum echten Standort.
@@ -22,7 +16,9 @@
     - Roter Apple-Marker für die Auswahl, grüner Marker bei aktivem Spoofing.
     - Dynamischer Button **„📍 Standort setzen“ / „🔄 Standort zurücksetzen“** mit Status-Badge.
   - **Native IPA mit Xcode 16**: `expoApp.ipa` fehlerfrei kompiliert (Run ID: `32978585833`).
-- **Lokaler Entwicklungsmodus**: Metro Bundler (`task-616`) & Veltic Backend Daemon (`task-820`) aktiv mit 0 Fehlern / 0 Warnungen für sofortiges Live-Reloading.
+- **Veltic Cloud Backend (`velticBackend/`) in 100 % TypeScript**:
+  - **Reines TypeScript & Node.js**: Kein Python erforderlich, kompiliert via `esbuild`.
+  - **Veltic Managed PostgreSQL Database (`037c6c70-0222-49b0-ac75-8f8213ef6cfc`)**.
 
 ### Features in Arbeit
 - Keine.

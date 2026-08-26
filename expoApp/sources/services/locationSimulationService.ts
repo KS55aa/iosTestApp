@@ -1,3 +1,4 @@
+import { NativeModules } from "react-native";
 import {
   GeographicCoordinates,
   CardinalDirection,
@@ -5,10 +6,12 @@ import {
   SystemLocationSpoofingState
 } from "../models/locationTypes";
 
+const { OnDeviceLocationModule } = NativeModules;
+
 export class LocationSimulationService {
   private static instance: LocationSimulationService;
 
-  private bridgeServerUrl: string = "http://192.168.178.56:8082";
+  private velticApiUrl: string = "http://192.168.178.56:8082";
 
   private currentCoordinates: GeographicCoordinates = {
     latitude: 52.516275,
@@ -51,8 +54,17 @@ export class LocationSimulationService {
       activatedTimestamp: Date.now()
     };
 
+    if (OnDeviceLocationModule && OnDeviceLocationModule.setLocation) {
+      try {
+        await OnDeviceLocationModule.setLocation(
+          coordinates.latitude,
+          coordinates.longitude
+        );
+      } catch {}
+    }
+
     try {
-      await fetch(`${this.bridgeServerUrl}/set-location`, {
+      await fetch(`${this.velticApiUrl}/set-location`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -60,9 +72,7 @@ export class LocationSimulationService {
           longitude: coordinates.longitude
         })
       });
-    } catch {
-      return { ...this.spoofingState };
-    }
+    } catch {}
 
     return { ...this.spoofingState };
   }
@@ -74,14 +84,18 @@ export class LocationSimulationService {
       activatedTimestamp: null
     };
 
+    if (OnDeviceLocationModule && OnDeviceLocationModule.resetLocation) {
+      try {
+        await OnDeviceLocationModule.resetLocation();
+      } catch {}
+    }
+
     try {
-      await fetch(`${this.bridgeServerUrl}/reset-location`, {
+      await fetch(`${this.velticApiUrl}/reset-location`, {
         method: "POST",
         headers: { "Content-Type": "application/json" }
       });
-    } catch {
-      return { ...this.spoofingState };
-    }
+    } catch {}
 
     return { ...this.spoofingState };
   }

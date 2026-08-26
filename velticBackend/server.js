@@ -28241,31 +28241,26 @@ var TypeOverrides = import_lib.default.TypeOverrides;
 var defaults = import_lib.default.defaults;
 
 // src/index.ts
-var import_child_process = require("child_process");
 var app = (0, import_express.default)();
-var port = process.env.PORT || 8082;
+var port = process.env.PORT || 4e3;
 app.use((0, import_cors.default)());
 app.use(import_express.default.json());
-var databaseUrl = process.env.DATABASE_URL || "postgresql://usr_locationdb:5fd7ae7efee19f0c6240756c3cf79e92A1!@app.veltic.kstaq.de:5432/locationdb";
+var databaseUrl = process.env.DATABASE_URL || "postgresql://usr_locationdb:5fd7ae7efee19f0c6240756c3cf79e92A1!@127.0.0.1:5432/locationdb";
 var pool = new Pool({
   connectionString: databaseUrl,
-  ssl: { rejectUnauthorized: false }
+  ssl: false
 });
-var activeSimulationProcess = null;
-var terminateSimulationProcess = () => {
-  if (activeSimulationProcess) {
-    try {
-      activeSimulationProcess.kill();
-    } catch {
-    }
-    activeSimulationProcess = null;
-  }
-};
+app.get("/", (req, res) => {
+  res.json({
+    service: "Veltic Location Cloud Backend",
+    status: "online",
+    timestamp: Date.now()
+  });
+});
 app.get("/health", (req, res) => {
   res.json({
     status: "healthy",
     service: "veltic-location-backend",
-    database: "connected",
     timestamp: Date.now()
   });
 });
@@ -28325,13 +28320,12 @@ app.get("/api/locations/active", async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 });
-app.post("/set-location", async (req, res) => {
+app.post("/api/locations/set", async (req, res) => {
   const { latitude, longitude, placeName, deviceName } = req.body;
   if (latitude === void 0 || longitude === void 0) {
     res.status(400).json({ error: "Latitude and Longitude are required" });
     return;
   }
-  terminateSimulationProcess();
   const targetDevice = deviceName || "iPhone";
   const targetPlace = placeName || "Simulierter Standort";
   try {
@@ -28339,60 +28333,36 @@ app.post("/set-location", async (req, res) => {
       "INSERT INTO active_simulations (device_name, is_active, latitude, longitude, place_name, updated_at) VALUES ($1, true, $2, $3, $4, CURRENT_TIMESTAMP);",
       [targetDevice, latitude, longitude, targetPlace]
     );
-  } catch {
+    res.json({
+      status: "success",
+      isActive: true,
+      latitude,
+      longitude,
+      placeName: targetPlace
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
   }
-  activeSimulationProcess = (0, import_child_process.spawn)(
-    "python",
-    [
-      "-m",
-      "pymobiledevice3",
-      "developer",
-      "dvt",
-      "simulate-location",
-      "set",
-      "--userspace",
-      String(latitude),
-      String(longitude)
-    ],
-    { stdio: "ignore" }
-  );
-  res.json({
-    status: "success",
-    isActive: true,
-    latitude,
-    longitude,
-    placeName: targetPlace
-  });
 });
-app.post("/reset-location", async (req, res) => {
-  terminateSimulationProcess();
+app.post("/api/locations/reset", async (req, res) => {
+  const { deviceName } = req.body;
   try {
+    const targetDevice = deviceName || "iPhone";
     await pool.query(
       "INSERT INTO active_simulations (device_name, is_active, latitude, longitude, place_name, updated_at) VALUES ($1, false, NULL, NULL, 'Reales GPS', CURRENT_TIMESTAMP);",
-      ["iPhone"]
+      [targetDevice]
     );
-  } catch {
+    res.json({
+      status: "reset",
+      isActive: false
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
   }
-  (0, import_child_process.spawn)(
-    "python",
-    [
-      "-m",
-      "pymobiledevice3",
-      "developer",
-      "dvt",
-      "simulate-location",
-      "clear",
-      "--userspace"
-    ],
-    { stdio: "ignore" }
-  );
-  res.json({
-    status: "reset",
-    isActive: false
-  });
 });
-app.listen(port, () => {
-  console.log(`Veltic Location TypeScript Backend listening on port ${port}`);
+var serverPort = typeof port === "string" ? parseInt(port, 10) : port;
+app.listen(serverPort, "0.0.0.0", () => {
+  console.log(`Veltic Location Cloud Backend listening on 0.0.0.0:${serverPort}`);
 });
 /*! Bundled license information:
 
