@@ -1,9 +1,9 @@
 import React from "react";
 import { registerRootComponent } from "expo";
-import { ContentView } from "./sources/ui/contentView";
+import { LocationMapScreen } from "./sources/ui/locationMapScreen";
 
 function App(): React.JSX.Element {
-  return <ContentView />;
+  return <LocationMapScreen />;
 }
 
 registerRootComponent(App);
