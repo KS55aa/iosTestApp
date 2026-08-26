@@ -3,34 +3,36 @@
 ## A) Aktueller Projektstatus
 
 ### Vollständig umgesetzte Features
-- **Native SwiftUI App (`iosApp/`)**: Vollständige native Test-App mit `project.pbxproj`, Ad-Hoc Signierung und CI/CD Pipeline (`testApp.ipa` verifiziert).
-- **Expo & React Native App (`expoApp/`)**:
-  - Vollständiges Expo TypeScript Projekt mit `App.tsx`, `contentView.tsx` und `deviceInformationService.ts`.
-  - Replikation sämtlicher Testfunktionen (Dashboard, Systemdiagnose, Interaktionszähler, Toggles).
-  - Volle Kompatibilität mit **Expo Go 54.0.0** (New Architecture, Bridgeless Runtime).
-  - Lokaler Metro Bundler Development Server aktiv für Live-Hot-Reloading.
+- **Location Changer & GPS Simulator App (`expoApp/`)**:
+  - **Interaktive Kartenoberfläche (`locationMapScreen.tsx`)**: Vollbild-Weltkarte mit flüssigem Panning, Zooming, Pin-Dropping und Zentrierungs-Funktion.
+  - **Such- & Geocoding-System (`searchLocationBar.tsx`, `geocodingService.ts`)**: Weltweite Adress- und Ortssuche, Direkt-Koordinateneingabe (`Lat, Lng`), automatische Vorschläge und Schnellwahl-Favoriten (Berlin, Paris, Tokio, New York, London, Dubai).
+  - **Virtuelle Joystick-Steuerung (`joystickControlOverlay.tsx`, `locationSimulationService.ts`)**: 4-Wege Richtungs-Steuerung mit Halte-Automatik und Geschwindigkeitsstufen (Gehen: 5 km/h, Fahrrad: 20 km/h, Auto: 60 km/h, Flug: 300 km/h) zur Echtzeit-Bewegungssimulation.
+  - **Standort-Detailansicht & GPX-Export (`locationDetailsModal.tsx`, `gpxExportService.ts`)**: Reverse-Geocoding der gewählten Position, Koordinatenanzeige und GPX-Track-Generierung für Entwicklertools.
+  - **Live-Development**: Live-Server auf Expo SDK 54 aktiv (Echtzeit Hot-Reloading in Expo Go).
+- **Native SwiftUI App (`iosApp/`)**: Native SwiftUI Test-App mit `project.pbxproj` und validierter `testApp.ipa`.
 - **CI/CD Build-Pipelines via GitHub Actions**:
-  - `buildIpa.yml`: Native SwiftUI App `.ipa`-Generierung.
-  - `buildExpoIpa.yml`: Expo iOS `.ipa`-Generierung via `npx expo prebuild` und `xcodebuild` mit Ad-Hoc Codesignatur für Sideloadly (Erfolgreich abgeschlossen, Run ID: `32975820881`).
+  - `buildIpa.yml`: Native App `.ipa`.
+  - `buildExpoIpa.yml`: Expo Standalone `.ipa`.
 - **Lokale Ausgabedateien**:
+  - `buildArtifacts/expoApp-ipa/expoApp.ipa` (Expo Standalone App für Sideloadly)
   - `buildArtifacts/testApp-ipa/testApp.ipa` (Native SwiftUI App)
-  - `buildArtifacts/expoApp-ipa/expoApp.ipa` (Expo React Native Standalone App)
 - Remote-Repository auf GitHub: `https://github.com/KS55aa/iosTestApp`.
 
 ### Features in Arbeit
 - Keine.
 
 ### Geplante Features
-- Erweiterte UI-Screens und Navigationskomponenten.
+- Veltic Backend Integration zur Speicherung von Benutzer-Favoriten und Routen in der Cloud (`veltic databases` / `veltic apps`).
+- Multi-Point Routen-Generator (A-nach-B Wegfindung).
 
 ---
 
 ## B) Architektur- und Designentscheidungen
 
 ### Getroffene technische Entscheidungen
-- **Parallele Architekturen**: Bereitstellung sowohl der nativen Swift-App (`iosApp/`) als auch der modernen Expo/React Native App (`expoApp/`) im selben Repository.
-- **Prebuild-Strategie für Expo**: `npx expo prebuild --platform ios` generiert das native iOS Xcode-Projekt on-the-fly im CI-Runner, wodurch kein riesiges `ios/`-Verzeichnis im Git gepflegt werden muss.
-- **Ad-Hoc Signierung für Sideloadly**: Beide IPA-Dateien enthalten den standardkonformen `LC_CODE_SIGNATURE`-Header und `_CodeSignature/CodeResources`.
+- **Leaflet & React Native WebView**: Verwendung von OpenStreetMap Tiles ohne API-Key-Zwang für uneingeschränkte weltweite Kartendarstellung in Expo Go und Standalone IPA.
+- **Entkoppelte Simulations-Logik**: Mathematische Distanz- und Kursberechnungen (Haversine-Formel, sphärische Trigonometrie) im `locationSimulationService` gekapselt.
+- **Standardisiertes GPX-Format**: `gpxExportService` generiert valides XML 1.1 für nahtlose Kompatibilität mit Apple DVT und Sideload-Werkzeugen.
 
 ---
 
@@ -38,13 +40,15 @@
 
 ### Übersicht der Dateien und Verantwortlichkeiten
 
-- `expoApp/App.tsx`: Einstiegspunkt mit `registerRootComponent(App)`.
-- `expoApp/sources/ui/contentView.tsx`: Responsive Benutzeroberfläche für Expo.
-- `expoApp/sources/services/deviceInformationService.ts`: Diagnose-Dienst für Plattform- und Display-Informationen.
-- `expoApp/package.json` & `app.json` & `tsconfig.json`: Projektkonfiguration für Expo SDK 54.
-- `.github/workflows/buildExpoIpa.yml`: Automatisierte CI/CD Pipeline zur Kompilierung der Expo `.ipa`.
-- `buildArtifacts/expoApp-ipa/expoApp.ipa`: Fertige Standalone-IPA der Expo-App für Sideloadly.
-- `iosApp/`: Vorherige native Swift Test-App.
+- `expoApp/sources/ui/locationMapScreen.tsx`: Hauptschirm mit Kartenintegration und Modul-Orchestrierung.
+- `expoApp/sources/ui/searchLocationBar.tsx`: Suchfeld, Geocoding-Autovervollständigung und Favoriten-Chips.
+- `expoApp/sources/ui/joystickControlOverlay.tsx`: Virtueller D-Pad Joystick mit Geschwindigkeitsumschaltung.
+- `expoApp/sources/ui/locationDetailsModal.tsx`: Standortkarte mit Reverse-Geocoding und GPX-Export.
+- `expoApp/sources/services/locationSimulationService.ts`: Mathematischer Simulations- und Bewegungsdienst.
+- `expoApp/sources/services/geocodingService.ts`: Vorwärts- und Rückwärts-Geocoding via OpenStreetMap.
+- `expoApp/sources/services/gpxExportService.ts`: GPX-XML Export Generator.
+- `expoApp/sources/models/locationTypes.ts`: Strikte TypeScript Schnittstellen.
+- `expoApp/sources/config/mapConfiguration.ts`: Standard-Koordinaten, Favoriten und Leaflet HTML Engine.
 - `progress.md`: Projektstatus und Gesamtdokumentation.
 
 ### Zusammenspiel der Komponenten
