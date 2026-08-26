@@ -4,8 +4,6 @@ import MapView, { Marker, Region, PROVIDER_DEFAULT } from "react-native-maps";
 import {
   GeographicCoordinates,
   LocationInformation,
-  CardinalDirection,
-  MovementSpeedPreset,
   AppleMapDisplayType
 } from "../models/locationTypes";
 import { initialDefaultCoordinates } from "../config/mapConfiguration";
@@ -13,7 +11,6 @@ import { LocationSimulationService } from "../services/locationSimulationService
 import { GeocodingService } from "../services/geocodingService";
 import { DeviceLocationService } from "../services/deviceLocationService";
 import { SearchLocationBar } from "./searchLocationBar";
-import { JoystickControlOverlay } from "./joystickControlOverlay";
 import { LocationDetailsModal } from "./locationDetailsModal";
 
 export const LocationMapScreen: React.FC = () => {
@@ -93,24 +90,6 @@ export const LocationMapScreen: React.FC = () => {
     };
 
     mapRef.current?.animateToRegion(targetRegion, 800);
-  };
-
-  const handleJoystickMove = (
-    direction: CardinalDirection,
-    speedPreset: MovementSpeedPreset
-  ): void => {
-    const nextCoords = simulationService.calculateNextPosition(direction, speedPreset, 250);
-    setCurrentCoordinates(nextCoords);
-
-    mapRef.current?.animateCamera(
-      {
-        center: {
-          latitude: nextCoords.latitude,
-          longitude: nextCoords.longitude
-        }
-      },
-      { duration: 250 }
-    );
   };
 
   const handleCenterOnMarker = (): void => {
@@ -206,8 +185,6 @@ export const LocationMapScreen: React.FC = () => {
             <Text style={styles.floatingIconText}>📍</Text>
           </TouchableOpacity>
         </View>
-
-        <JoystickControlOverlay onMoveDirection={handleJoystickMove} />
 
         <LocationDetailsModal
           locationInfo={locationInfo}
