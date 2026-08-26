@@ -8,10 +8,10 @@
 - System- und Gerätediagnose-Dienst (`deviceInformationService.swift`).
 - Konfigurationsressourcen (`info.plist`, App-Icon und Akzentfarben Asset-Kataloge).
 - Vollständiges, valides Xcode-Projekt (`project.pbxproj`) mit Shared Scheme (`testApp.xcscheme`).
-- CI/CD Build-Pipeline via GitHub Actions (`buildIpa.yml`) auf `macos-14`.
+- CI/CD Build-Pipeline via GitHub Actions (`buildIpa.yml`) auf `macos-14` mit Ad-Hoc Signierung (`codesign --force --deep --sign -`) zur vollständigen Kompatibilität mit Sideloadly.
 - Remote-Repository auf GitHub erstellt: `https://github.com/KS55aa/iosTestApp`.
-- Automatischer GitHub Actions Build erfolgreich ausgeführt (Run ID: `32971592809`, Laufzeit: 35s).
-- Fertige `testApp.ipa` erfolgreich heruntergeladen und lokal abgelegt unter `buildArtifacts/testApp-ipa/testApp.ipa`.
+- GitHub Actions Build erfolgreich ausgeführt (Run ID: `32972363614`, Laufzeit: 22s).
+- Validierte `testApp.ipa` (inklusive `LC_CODE_SIGNATURE` und `_CodeSignature/CodeResources`) lokal heruntergeladen unter `buildArtifacts/testApp-ipa/testApp.ipa`.
 
 ### Features in Arbeit
 - Keine.
