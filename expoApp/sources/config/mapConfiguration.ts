@@ -100,19 +100,33 @@ export function generateAppleMapsHtml(initialCoordinates: GeographicCoordinates)
       margin-top: 4px;
       filter: blur(1.5px);
     }
-    .appleAccuracyHalo {
-      position: absolute;
-      width: 90px;
-      height: 90px;
-      border-radius: 50%;
-      background-color: rgba(0, 122, 255, 0.12);
-      border: 1px solid rgba(0, 122, 255, 0.25);
-      animation: pulseHalo 2.5s infinite ease-out;
+    .appleBlueLocationContainer {
+      display: flex;
+      align-items: center;
+      justify-content: center;
       pointer-events: none;
     }
-    @keyframes pulseHalo {
-      0% { transform: scale(0.6); opacity: 0.8; }
-      100% { transform: scale(1.4); opacity: 0; }
+    .appleBlueDotCore {
+      width: 20px;
+      height: 20px;
+      background-color: #007AFF;
+      border: 3.5px solid #FFFFFF;
+      border-radius: 50%;
+      box-shadow: 0 2px 10px rgba(0, 122, 255, 0.75);
+      z-index: 10;
+    }
+    .appleBlueDotHalo {
+      position: absolute;
+      width: 60px;
+      height: 60px;
+      background-color: rgba(0, 122, 255, 0.25);
+      border: 1.5px solid rgba(0, 122, 255, 0.5);
+      border-radius: 50%;
+      animation: blueDotPulse 2s infinite ease-out;
+    }
+    @keyframes blueDotPulse {
+      0% { transform: scale(0.4); opacity: 1; }
+      100% { transform: scale(1.6); opacity: 0; }
     }
   </style>
 </head>
@@ -121,6 +135,7 @@ export function generateAppleMapsHtml(initialCoordinates: GeographicCoordinates)
   <script>
     let mapInstance;
     let targetMarker;
+    let userLocationMarker;
     let currentLayer;
 
     const initialLatitude = ${initialCoordinates.latitude};
@@ -142,9 +157,16 @@ export function generateAppleMapsHtml(initialCoordinates: GeographicCoordinates)
 
     const applePinIcon = L.divIcon({
       className: 'applePinContainer',
-      html: '<div class="appleAccuracyHalo"></div><div class="applePinHead"><div class="applePinInnerDot"></div></div><div class="applePinShadow"></div>',
+      html: '<div class="applePinHead"><div class="applePinInnerDot"></div></div><div class="applePinShadow"></div>',
       iconSize: [40, 48],
       iconAnchor: [20, 46]
+    });
+
+    const appleBlueDotIcon = L.divIcon({
+      className: 'appleBlueLocationContainer',
+      html: '<div class="appleBlueDotHalo"></div><div class="appleBlueDotCore"></div>',
+      iconSize: [60, 60],
+      iconAnchor: [30, 30]
     });
 
     targetMarker = L.marker([initialLatitude, initialLongitude], {
@@ -178,6 +200,45 @@ export function generateAppleMapsHtml(initialCoordinates: GeographicCoordinates)
       }
     }
 
+    window.setUserActualLocation = function(latitude, longitude, shouldCenter) {
+      if (!mapInstance) return;
+      const userLatLng = [latitude, longitude];
+      if (!userLocationMarker) {
+        userLocationMarker = L.marker(userLatLng, {
+          icon: appleBlueDotIcon,
+          interactive: false,
+          zIndexOffset: 1000
+        }).addTo(mapInstance);
+      } else {
+        userLocationMarker.setLatLng(userLatLng);
+      }
+
+      if (shouldCenter) {
+        targetMarker.setLatLng(userLatLng);
+        mapInstance.setView(userLatLng, 16, { animate: true });
+        sendEventToReactNative('locationSelected', {
+          latitude: latitude,
+          longitude: longitude
+        });
+      }
+    };
+
+    window.locateUserDevice = function() {
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+          function(position) {
+            window.setUserActualLocation(position.coords.latitude, position.coords.longitude, true);
+          },
+          function(error) {
+            if (userLocationMarker) {
+              mapInstance.setView(userLocationMarker.getLatLng(), 16, { animate: true });
+            }
+          },
+          { enableHighAccuracy: true, timeout: 8000, maximumAge: 0 }
+        );
+      }
+    };
+
     window.updateMapPosition = function(latitude, longitude, zoomLevel) {
       if (mapInstance && targetMarker) {
         const nextLatLng = [latitude, longitude];
@@ -203,6 +264,8 @@ export function generateAppleMapsHtml(initialCoordinates: GeographicCoordinates)
         currentLayer = L.tileLayer(tileUrl, { maxZoom: 19, subdomains: 'abcd' }).addTo(mapInstance);
       }
     };
+
+    window.locateUserDevice();
   </script>
 </body>
 </html>`;

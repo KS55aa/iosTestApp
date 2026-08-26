@@ -92,6 +92,11 @@ export const LocationMapScreen: React.FC = () => {
     webViewRef.current?.injectJavaScript(script);
   };
 
+  const handleLocateMe = (): void => {
+    const script = `window.locateUserDevice(); true;`;
+    webViewRef.current?.injectJavaScript(script);
+  };
+
   const toggleMapType = (): void => {
     const nextType: AppleMapDisplayType = mapDisplayType === "standard" ? "satellite" : "standard";
     setMapDisplayType(nextType);
@@ -110,21 +115,32 @@ export const LocationMapScreen: React.FC = () => {
           onMessage={handleMapMessage}
           javaScriptEnabled={true}
           domStorageEnabled={true}
+          geolocationEnabled={true}
           originWhitelist={["*"]}
           scrollEnabled={false}
         />
 
         <SearchLocationBar onSelectLocation={handleSelectLocation} />
 
-        <TouchableOpacity
-          style={styles.mapTypeToggleFloatingButton}
-          onPress={toggleMapType}
-          activeOpacity={0.8}
-        >
-          <Text style={styles.mapTypeToggleText}>
-            {mapDisplayType === "standard" ? "🛰️ Satellit" : "🗺️ Karte"}
-          </Text>
-        </TouchableOpacity>
+        <View style={styles.floatingControlsColumn}>
+          <TouchableOpacity
+            style={styles.floatingIconButton}
+            onPress={toggleMapType}
+            activeOpacity={0.8}
+          >
+            <Text style={styles.floatingIconText}>
+              {mapDisplayType === "standard" ? "🛰️" : "🗺️"}
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.floatingIconButton}
+            onPress={handleLocateMe}
+            activeOpacity={0.8}
+          >
+            <Text style={styles.floatingIconText}>📍</Text>
+          </TouchableOpacity>
+        </View>
 
         <JoystickControlOverlay onMoveDirection={handleJoystickMove} />
 
@@ -151,24 +167,27 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#F8F9FA"
   },
-  mapTypeToggleFloatingButton: {
+  floatingControlsColumn: {
     position: "absolute",
     top: 155,
     right: 16,
-    backgroundColor: "rgba(255, 255, 255, 0.95)",
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    borderRadius: 20,
-    shadowColor: "#000000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
-    shadowRadius: 4,
-    elevation: 4,
+    gap: 10,
     zIndex: 90
   },
-  mapTypeToggleText: {
-    fontSize: 11,
-    fontWeight: "700",
-    color: "#007AFF"
+  floatingIconButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: "rgba(255, 255, 255, 0.96)",
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: "#000000",
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.18,
+    shadowRadius: 6,
+    elevation: 5
+  },
+  floatingIconText: {
+    fontSize: 20
   }
 });
