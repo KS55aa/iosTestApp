@@ -26,6 +26,7 @@
 - **Entkopplung der Services**: Auslagerung von Systemabfragen in dedizierte Singleton-Dienste (`deviceInformationService`), um UI und Logik sauber zu trennen.
 - **Unsignierter Release-Build im CI**: `CODE_SIGNING_ALLOWED=NO` und `CODE_SIGNING_REQUIRED=NO` in GitHub Actions ermöglichen den Build ohne Zertifikate. Das Signieren wird clientseitig von Sideloadly via Apple-ID durchgeführt.
 - **Standardisiertes IPA-Packaging**: Kompilierte App wird in das Verzeichnis `Payload/` überführt und als Standard-ZIP-Archiv mit `.ipa`-Endung gepackt.
+- **GitHub CLI Integration**: Authentifizierung über Account `KS55aa` vorhanden für automatisierte Repository-Erstellung, Workflow-Triggerung und direkten Artefakt-Download.
 
 ---
 
@@ -70,7 +71,7 @@
 
 ## E) Nächste Schritte
 
-1. Repository zu GitHub pushen (`git add .`, `git commit -m "feat: initial test app"`, `git push origin main`).
-2. GitHub Actions Tab öffnen und den Durchlauf des Workflows `Build iOS IPA` abwarten.
-3. Die generierte `.ipa`-Datei unter den Workflow-Artifacts herunterladen.
-4. `.ipa` in Sideloadly laden, iPhone per USB anschließen und die App installieren.
+1. Remote-Repository via `gh repo create` erstellen und Code automatisch hochladen.
+2. GitHub Actions Build überwachen (`gh run watch`).
+3. Fertige `.ipa`-Datei direkt per `gh run download` lokal herunterladen.
+4. `.ipa` in Sideloadly öffnen und auf das iPhone übertragen.
