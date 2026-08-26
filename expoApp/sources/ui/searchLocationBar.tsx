@@ -6,123 +6,117 @@ import {
   Text,
   FlatList,
   StyleSheet,
-  ActivityIndicator,
-  ScrollView
+  ActivityIndicator
 } from "react-native";
+import { GeographicCoordinates, GeocodingSearchResult } from "../models/locationTypes";
 import { GeocodingService } from "../services/geocodingService";
-import { GeocodingSearchResult, GeographicCoordinates } from "../models/locationTypes";
-import { quickLocationFavorites } from "../config/mapConfiguration";
+import { VelticLocationService, VelticFavoriteLocation } from "../services/velticLocationService";
 
 interface SearchLocationBarProps {
   onSelectLocation: (coordinates: GeographicCoordinates, placeName: string) => void;
 }
 
-export const SearchLocationBar: React.FC<SearchLocationBarProps> = ({ onSelectLocation }) => {
+export const SearchLocationBar: React.FC<SearchLocationBarProps> = ({
+  onSelectLocation
+}) => {
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [searchResults, setSearchResults] = useState<GeocodingSearchResult[]>([]);
   const [isSearching, setIsSearching] = useState<boolean>(false);
-  const [isDropdownVisible, setIsDropdownVisible] = useState<boolean>(false);
+  const [favoritesList, setFavoritesList] = useState<VelticFavoriteLocation[]>([]);
 
   const geocodingService = GeocodingService.getInstance();
+  const velticService = VelticLocationService.getInstance();
 
   useEffect(() => {
-    if (searchQuery.trim().length < 2) {
+    velticService.fetchFavoriteLocations().then((items) => {
+      if (items.length > 0) {
+        setFavoritesList(items);
+      }
+    });
+  }, [velticService]);
+
+  const handleSearch = async (text: string): Promise<void> => {
+    setSearchQuery(text);
+    if (text.trim().length < 2) {
       setSearchResults([]);
-      setIsDropdownVisible(false);
       return;
     }
 
-    const debounceTimer = setTimeout(async () => {
-      setIsSearching(true);
-      const results = await geocodingService.searchLocations(searchQuery);
-      setSearchResults(results);
-      setIsDropdownVisible(results.length > 0);
-      setIsSearching(false);
-    }, 400);
-
-    return () => clearTimeout(debounceTimer);
-  }, [searchQuery]);
-
-  const handleSelectResult = (item: GeocodingSearchResult): void => {
-    setSearchQuery(item.cityName);
-    setIsDropdownVisible(false);
-    onSelectLocation(
-      { latitude: item.latitude, longitude: item.longitude },
-      item.displayName
-    );
+    setIsSearching(true);
+    const results = await geocodingService.searchPlaces(text);
+    setSearchResults(results);
+    setIsSearching(false);
   };
 
-  const handleSelectFavorite = (fav: { name: string; latitude: number; longitude: number }): void => {
-    setSearchQuery(fav.name);
-    setIsDropdownVisible(false);
-    onSelectLocation(
-      { latitude: fav.latitude, longitude: fav.longitude },
-      fav.name
-    );
-  };
-
-  const handleClear = (): void => {
+  const handleSelectItem = (
+    coordinates: GeographicCoordinates,
+    placeName: string
+  ): void => {
     setSearchQuery("");
     setSearchResults([]);
-    setIsDropdownVisible(false);
+    onSelectLocation(coordinates, placeName);
   };
 
   return (
     <View style={styles.container}>
-      <View style={styles.searchBarRow}>
+      <View style={styles.searchBarWrapper}>
         <Text style={styles.searchIcon}>🔍</Text>
         <TextInput
-          style={styles.searchInput}
-          placeholder="Ort, Adresse oder Koordinaten..."
+          style={styles.inputField}
+          placeholder="Ort oder Koordinaten eingeben..."
           placeholderTextColor="#8E8E93"
           value={searchQuery}
-          onChangeText={setSearchQuery}
-          autoCapitalize="none"
+          onChangeText={handleSearch}
           autoCorrect={false}
           clearButtonMode="while-editing"
         />
-        {isSearching && (
-          <ActivityIndicator size="small" color="#007AFF" style={styles.spinner} />
-        )}
-        {searchQuery.length > 0 && !isSearching && (
-          <TouchableOpacity onPress={handleClear} style={styles.clearButton}>
-            <Text style={styles.clearButtonText}>✕</Text>
-          </TouchableOpacity>
-        )}
+        {isSearching && <ActivityIndicator size="small" color="#007AFF" />}
       </View>
 
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.favoritesRow}
-      >
-        {quickLocationFavorites.map((fav, index) => (
-          <TouchableOpacity
-            key={index}
-            style={styles.favoriteChip}
-            onPress={() => handleSelectFavorite(fav)}
-            activeOpacity={0.7}
-          >
-            <Text style={styles.favoriteChipText}>{fav.name.split(" ")[0]}</Text>
-          </TouchableOpacity>
-        ))}
-      </ScrollView>
-
-      {isDropdownVisible && (
-        <View style={styles.dropdownContainer}>
+      {searchResults.length > 0 && (
+        <View style={styles.resultsDropdown}>
           <FlatList
             data={searchResults}
             keyExtractor={(item) => item.placeId}
             keyboardShouldPersistTaps="handled"
             renderItem={({ item }) => (
               <TouchableOpacity
-                style={styles.dropdownItem}
-                onPress={() => handleSelectResult(item)}
+                style={styles.resultRow}
+                onPress={() =>
+                  handleSelectItem(
+                    { latitude: item.latitude, longitude: item.longitude },
+                    item.displayName
+                  )
+                }
               >
-                <Text style={styles.dropdownItemCity}>{item.cityName}</Text>
-                <Text style={styles.dropdownItemAddress} numberOfLines={1}>
+                <Text style={styles.resultCityText}>{item.cityName}</Text>
+                <Text style={styles.resultAddressText} numberOfLines={1}>
                   {item.displayName}
                 </Text>
+              </TouchableOpacity>
+            )}
+          />
+        </View>
+      )}
+
+      {searchResults.length === 0 && (
+        <View style={styles.quickFavoritesRow}>
+          <FlatList
+            horizontal={true}
+            showsHorizontalScrollIndicator={false}
+            data={favoritesList}
+            keyExtractor={(item) => String(item.id)}
+            renderItem={({ item }) => (
+              <TouchableOpacity
+                style={styles.favoriteChip}
+                onPress={() =>
+                  handleSelectItem(
+                    { latitude: item.latitude, longitude: item.longitude },
+                    item.title
+                  )
+                }
+              >
+                <Text style={styles.favoriteChipText}>{item.title}</Text>
               </TouchableOpacity>
             )}
           />
@@ -135,18 +129,18 @@ export const SearchLocationBar: React.FC<SearchLocationBarProps> = ({ onSelectLo
 const styles = StyleSheet.create({
   container: {
     position: "absolute",
-    top: 50,
+    top: 60,
     left: 16,
     right: 16,
     zIndex: 100
   },
-  searchBarRow: {
+  searchBarWrapper: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#FFFFFF",
+    backgroundColor: "rgba(255, 255, 255, 0.96)",
     borderRadius: 14,
     paddingHorizontal: 12,
-    paddingVertical: 8,
+    paddingVertical: 10,
     shadowColor: "#000000",
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.15,
@@ -157,70 +151,58 @@ const styles = StyleSheet.create({
     fontSize: 16,
     marginRight: 8
   },
-  searchInput: {
+  inputField: {
     flex: 1,
     fontSize: 15,
     color: "#1C1C1E",
-    paddingVertical: 4
+    paddingVertical: 0
   },
-  spinner: {
-    marginLeft: 8
+  resultsDropdown: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 14,
+    marginTop: 6,
+    maxHeight: 220,
+    shadowColor: "#000000",
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.18,
+    shadowRadius: 12,
+    elevation: 8,
+    overflow: "hidden"
   },
-  clearButton: {
-    padding: 4,
-    marginLeft: 6
+  resultRow: {
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: "#E5E5EA"
   },
-  clearButtonText: {
-    color: "#8E8E93",
+  resultCityText: {
     fontSize: 14,
-    fontWeight: "bold"
+    fontWeight: "600",
+    color: "#1C1C1E"
   },
-  favoritesRow: {
-    paddingTop: 8,
-    gap: 6
+  resultAddressText: {
+    fontSize: 12,
+    color: "#8E8E93",
+    marginTop: 2
+  },
+  quickFavoritesRow: {
+    marginTop: 8
   },
   favoriteChip: {
-    backgroundColor: "rgba(255, 255, 255, 0.92)",
+    backgroundColor: "rgba(255, 255, 255, 0.94)",
     paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 20,
+    paddingVertical: 7,
+    borderRadius: 18,
+    marginRight: 8,
     shadowColor: "#000000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
-    elevation: 2
+    elevation: 3
   },
   favoriteChipText: {
     fontSize: 12,
     fontWeight: "600",
-    color: "#007AFF"
-  },
-  dropdownContainer: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: 12,
-    marginTop: 8,
-    maxHeight: 220,
-    shadowColor: "#000000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 10,
-    elevation: 8,
-    overflow: "hidden"
-  },
-  dropdownItem: {
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: "#F2F2F7"
-  },
-  dropdownItemCity: {
-    fontSize: 15,
-    fontWeight: "600",
     color: "#1C1C1E"
-  },
-  dropdownItemAddress: {
-    fontSize: 12,
-    color: "#8E8E93",
-    marginTop: 2
   }
 });
