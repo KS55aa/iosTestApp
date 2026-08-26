@@ -1,203 +1,128 @@
 import React from "react";
-import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
+import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator } from "react-native";
 import { GeographicCoordinates, LocationInformation } from "../models/locationTypes";
 
-interface LocationDetailsModalProps {
+interface locationDetailsModalProps {
   locationInfo: LocationInformation | null;
   currentCoordinates: GeographicCoordinates;
   isSpoofingActive: boolean;
+  requiresReset: boolean;
+  engineAvailable: boolean;
+  isOperationPending: boolean;
+  operationError: string | null;
+  isSavingFavorite: boolean;
+  favoriteMessage: string | null;
   onCenterMap: () => void;
-  onToggleSpoofing: () => void;
+  onToggleSpoofing: () => Promise<void>;
+  onSaveFavorite: () => Promise<void>;
 }
 
-export const LocationDetailsModal: React.FC<LocationDetailsModalProps> = ({
+export const LocationDetailsModal: React.FC<locationDetailsModalProps> = ({
   locationInfo,
   currentCoordinates,
   isSpoofingActive,
+  requiresReset,
+  engineAvailable,
+  isOperationPending,
+  operationError,
+  isSavingFavorite,
+  favoriteMessage,
   onCenterMap,
-  onToggleSpoofing
+  onToggleSpoofing,
+  onSaveFavorite
 }) => {
+  const statusLabel = isOperationPending
+    ? "Standortoperation läuft …"
+    : operationError
+      ? "Standortänderung nicht bestätigt"
+      : isSpoofingActive
+        ? "DVT-Befehl bestätigt · Developer-Verbindung aktiv"
+        : requiresReset
+          ? "Systemzustand unbestätigt · bitte zurücksetzen"
+          : "Zielort ausgewählt · keine Systemänderung bestätigt";
+
   return (
-    <View style={styles.cardContainer}>
-      <View style={styles.topRow}>
-        <View style={styles.locationInfoCol}>
-          <View style={styles.titleWithStatusRow}>
-            <Text style={styles.cityText} numberOfLines={1}>
-              📍 {locationInfo?.cityName || "Ausgewählter Ort"}
-            </Text>
-            <View
-              style={[
-                styles.statusIndicatorBadge,
-                isSpoofingActive
-                  ? styles.statusIndicatorBadgeActive
-                  : styles.statusIndicatorBadgeInactive
-              ]}
-            >
-              <Text
-                style={[
-                  styles.statusIndicatorText,
-                  isSpoofingActive
-                    ? styles.statusIndicatorTextActive
-                    : styles.statusIndicatorTextInactive
-                ]}
-              >
-                {isSpoofingActive ? "🟢 Systemweit aktiv" : "⚪ Ausgewählt"}
-              </Text>
-            </View>
-          </View>
-          <Text style={styles.addressText} numberOfLines={1}>
-            {locationInfo?.formattedAddress || "Wird ermittelt..."}
-          </Text>
-        </View>
-
-        <View style={styles.badgeCol}>
-          <Text style={styles.coordinatesBadge}>
-            {currentCoordinates.latitude.toFixed(4)}, {currentCoordinates.longitude.toFixed(4)}
-          </Text>
-        </View>
-      </View>
-
+    <View style={styles.container}>
+      <Text style={styles.cityText} numberOfLines={1}>
+        {locationInfo?.cityName || "Ausgewählter Ort"}
+      </Text>
+      <Text style={styles.addressText} numberOfLines={2}>
+        {locationInfo?.formattedAddress || "Adresse wird ermittelt …"}
+      </Text>
+      <Text style={styles.coordinatesText}>
+        {currentCoordinates.latitude.toFixed(5)}, {currentCoordinates.longitude.toFixed(5)}
+      </Text>
+      <Text style={styles.statusText} accessibilityLiveRegion="polite">{statusLabel}</Text>
+      {operationError && <Text style={styles.errorText} accessibilityRole="alert">{operationError}</Text>}
+      {favoriteMessage && <Text style={styles.statusText} accessibilityLiveRegion="polite">{favoriteMessage}</Text>}
       <View style={styles.buttonRow}>
-        <TouchableOpacity
-          style={styles.secondaryActionButton}
-          onPress={onCenterMap}
-          activeOpacity={0.8}
-        >
-          <Text style={styles.secondaryActionText}>🎯 Zentrieren</Text>
+        <TouchableOpacity style={styles.secondaryButton} onPress={onCenterMap} accessibilityRole="button">
+          <Text style={styles.secondaryText}>Zentrieren</Text>
         </TouchableOpacity>
-
         <TouchableOpacity
-          style={[
-            styles.primaryActionButton,
-            isSpoofingActive
-              ? styles.primaryActionButtonActive
-              : styles.primaryActionButtonInactive
-          ]}
-          onPress={onToggleSpoofing}
-          activeOpacity={0.8}
+          style={styles.secondaryButton}
+          onPress={onSaveFavorite}
+          disabled={isSavingFavorite}
+          accessibilityRole="button"
+          accessibilityState={{ disabled: isSavingFavorite, busy: isSavingFavorite }}
         >
-          <Text style={styles.primaryActionText}>
-            {isSpoofingActive ? "🔄 Standort zurücksetzen" : "📍 Standort setzen"}
-          </Text>
+          <Text style={styles.secondaryText}>{isSavingFavorite ? "Speichert …" : "Favorit speichern"}</Text>
         </TouchableOpacity>
       </View>
+      <TouchableOpacity
+        style={[styles.primaryButton, requiresReset && styles.resetButton, isOperationPending && styles.pendingButton]}
+        onPress={onToggleSpoofing}
+        disabled={isOperationPending}
+        accessibilityRole="button"
+        accessibilityState={{ disabled: isOperationPending, busy: isOperationPending }}
+      >
+        {isOperationPending && <ActivityIndicator color="#FFFFFF" size="small" />}
+        <Text style={styles.primaryText}>
+          {isOperationPending
+            ? "Native Operation läuft …"
+            : !engineAvailable ? "Engine einrichten"
+              : requiresReset ? "🔄 Standort zurücksetzen" : "📍 Standort setzen"}
+        </Text>
+      </TouchableOpacity>
     </View>
   );
 };
 
 const styles = StyleSheet.create({
-  cardContainer: {
+  container: {
     position: "absolute",
-    bottom: 24,
+    bottom: 12,
     left: 16,
     right: 16,
-    backgroundColor: "rgba(255, 255, 255, 0.96)",
-    borderRadius: 20,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 8,
     padding: 16,
     shadowColor: "#000000",
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.2,
-    shadowRadius: 14,
-    elevation: 10,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
     zIndex: 80
   },
-  topRow: {
+  cityText: { fontSize: 17, fontWeight: "600", color: "#1C1C1E" },
+  addressText: { fontSize: 14, color: "#636366", marginTop: 4 },
+  coordinatesText: { fontSize: 13, color: "#636366", marginTop: 4, fontVariant: ["tabular-nums"] },
+  statusText: { fontSize: 12, lineHeight: 17, color: "#636366", marginTop: 8 },
+  errorText: { fontSize: 13, lineHeight: 18, color: "#B42318", marginTop: 8 },
+  buttonRow: { flexDirection: "row", gap: 8, marginTop: 12 },
+  secondaryButton: { flex: 1, backgroundColor: "#F2F2F7", borderRadius: 8, padding: 12, alignItems: "center" },
+  secondaryText: { color: "#1C1C1E", fontSize: 14, fontWeight: "500" },
+  primaryButton: {
+    backgroundColor: "#007AFF",
+    borderRadius: 8,
+    padding: 14,
+    marginTop: 8,
     flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "flex-start",
-    marginBottom: 12
-  },
-  locationInfoCol: {
-    flex: 1,
-    marginRight: 8
-  },
-  titleWithStatusRow: {
-    flexDirection: "row",
-    alignItems: "center",
     gap: 8,
-    flexWrap: "wrap"
-  },
-  cityText: {
-    fontSize: 16,
-    fontWeight: "700",
-    color: "#1C1C1E"
-  },
-  statusIndicatorBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 10
-  },
-  statusIndicatorBadgeActive: {
-    backgroundColor: "rgba(52, 199, 89, 0.15)"
-  },
-  statusIndicatorBadgeInactive: {
-    backgroundColor: "rgba(142, 142, 147, 0.12)"
-  },
-  statusIndicatorText: {
-    fontSize: 10,
-    fontWeight: "700"
-  },
-  statusIndicatorTextActive: {
-    color: "#28CD41"
-  },
-  statusIndicatorTextInactive: {
-    color: "#8E8E93"
-  },
-  addressText: {
-    fontSize: 12,
-    color: "#8E8E93",
-    marginTop: 3
-  },
-  badgeCol: {
-    alignItems: "flex-end"
-  },
-  coordinatesBadge: {
-    fontSize: 11,
-    fontWeight: "600",
-    color: "#007AFF",
-    backgroundColor: "rgba(0, 122, 255, 0.1)",
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 8
-  },
-  buttonRow: {
-    flexDirection: "row",
-    gap: 10
-  },
-  secondaryActionButton: {
-    flex: 1,
-    backgroundColor: "#F2F2F7",
-    borderRadius: 12,
-    paddingVertical: 12,
     alignItems: "center",
     justifyContent: "center"
   },
-  secondaryActionText: {
-    color: "#1C1C1E",
-    fontSize: 14,
-    fontWeight: "600"
-  },
-  primaryActionButton: {
-    flex: 2,
-    borderRadius: 12,
-    paddingVertical: 12,
-    alignItems: "center",
-    justifyContent: "center",
-    shadowColor: "#000000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
-    shadowRadius: 4,
-    elevation: 3
-  },
-  primaryActionButtonInactive: {
-    backgroundColor: "#007AFF"
-  },
-  primaryActionButtonActive: {
-    backgroundColor: "#FF3B30"
-  },
-  primaryActionText: {
-    color: "#FFFFFF",
-    fontSize: 14,
-    fontWeight: "700"
-  }
+  resetButton: { backgroundColor: "#B42318" },
+  pendingButton: { opacity: 0.65 },
+  primaryText: { color: "#FFFFFF", fontSize: 15, fontWeight: "600" }
 });

@@ -1,0 +1,4 @@
+module locationEngineCore {
+  header "locationEngineCore.h"
+  export *
+}

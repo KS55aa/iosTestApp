@@ -16,19 +16,19 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.testlab.expoApp",
       "infoPlist": {
-        "NSLocationWhenInUseUsageDescription": "Diese App benötigt Zugriff auf deinen Standort, um deine aktuelle Position anzuzeigen und Standorte zu simulieren.",
-        "NSLocationAlwaysAndWhenInUseUsageDescription": "Diese App benötigt Zugriff auf deinen Standort im Hintergrund zur Standortsimulation.",
-        "UIBackgroundModes": ["location"]
+        "NSLocationWhenInUseUsageDescription": "Diese App benötigt Zugriff auf deinen Standort, um die von iOS gemeldete Position auf der Karte anzuzeigen."
       }
     },
     "plugins": [
       [
         "expo-location",
         {
-          "locationAlwaysAndWhenInUsePermission": "Diese App benötigt Zugriff auf deinen Standort für die Kartennavigation."
+          "locationAlwaysAndWhenInUsePermission": "Mit deiner Erlaubnis beobachtet die App die simulierte Position auch im Hintergrund. iOS kann die Ausführung trotzdem begrenzen.",
+          "locationWhenInUsePermission": "Die App zeigt die von iOS gemeldete Position und prüft Standortsimulationen.",
+          "isIosBackgroundLocationEnabled": true
         }
       ],
-      "./plugins/withOnDeviceLocation.js"
+      "./plugins/withLocationEngine.cjs"
     ]
   }
 }

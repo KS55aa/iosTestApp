@@ -1,3 +1,4 @@
+import asyncStorage from "@react-native-async-storage/async-storage";
 import { GeographicCoordinates } from "../models/locationTypes";
 
 export interface FavoriteLocationItem {
@@ -69,7 +70,8 @@ const defaultFavoriteLocations: FavoriteLocationItem[] = [
 
 export class LocalFavoriteStorageService {
   private static instance: LocalFavoriteStorageService;
-  private favoriteItems: FavoriteLocationItem[] = [...defaultFavoriteLocations];
+  private readonly storageKey = "locationFavoritesV1";
+  private operationQueue: Promise<void> = Promise.resolve();
 
   private constructor() {}
 
@@ -80,29 +82,100 @@ export class LocalFavoriteStorageService {
     return LocalFavoriteStorageService.instance;
   }
 
-  public getFavoriteLocations(): FavoriteLocationItem[] {
-    return [...this.favoriteItems];
+  public getFavoriteLocations(): Promise<FavoriteLocationItem[]> {
+    return this.enqueueOperation(() => this.readFavorites());
   }
 
   public addFavoriteLocation(
     title: string,
     address: string,
     coordinates: GeographicCoordinates
-  ): FavoriteLocationItem {
-    const newItem: FavoriteLocationItem = {
-      id: `fav_${Date.now()}`,
-      title,
-      address,
-      latitude: coordinates.latitude,
-      longitude: coordinates.longitude
-    };
-    this.favoriteItems.push(newItem);
-    return newItem;
+  ): Promise<FavoriteLocationItem> {
+    const requestedCoordinates = { ...coordinates };
+    return this.enqueueOperation(async () => {
+      const favoriteItems = await this.readFavorites();
+      let favoriteId: string;
+      do {
+        favoriteId = `favorite${Date.now().toString(36)}${Math.random().toString(36).slice(2)}`;
+      } while (favoriteItems.some((item) => item.id === favoriteId));
+      const newItem: FavoriteLocationItem = {
+        id: favoriteId,
+        title: title.trim(),
+        address: address.trim(),
+        ...requestedCoordinates
+      };
+      if (!this.isFavoriteLocation(newItem)) {
+        throw new Error("Der Favorit benötigt einen Namen und gültige Koordinaten.");
+      }
+      await this.writeFavorites([...favoriteItems, newItem]);
+      return newItem;
+    });
   }
 
-  public deleteFavoriteLocation(id: string): boolean {
-    const initialLength = this.favoriteItems.length;
-    this.favoriteItems = this.favoriteItems.filter((item) => item.id !== id);
-    return this.favoriteItems.length < initialLength;
+  public deleteFavoriteLocation(id: string): Promise<boolean> {
+    return this.enqueueOperation(async () => {
+      const favoriteItems = await this.readFavorites();
+      const remainingItems = favoriteItems.filter((item) => item.id !== id);
+      if (remainingItems.length === favoriteItems.length) {
+        return false;
+      }
+      await this.writeFavorites(remainingItems);
+      return true;
+    });
+  }
+
+  private enqueueOperation<resultType>(operation: () => Promise<resultType>): Promise<resultType> {
+    const result = this.operationQueue.then(operation);
+    this.operationQueue = result.then(() => undefined, () => undefined);
+    return result;
+  }
+
+  private async readFavorites(): Promise<FavoriteLocationItem[]> {
+    const serializedFavorites = await asyncStorage.getItem(this.storageKey);
+    if (serializedFavorites === null) {
+      const initialFavorites = defaultFavoriteLocations.map((item) => ({ ...item }));
+      await this.writeFavorites(initialFavorites);
+      return initialFavorites;
+    }
+    let storedFavorites: unknown;
+    try {
+      storedFavorites = JSON.parse(serializedFavorites);
+    } catch {
+      throw new Error("Die gespeicherten Favoriten sind beschädigt und wurden nicht überschrieben.");
+    }
+    if (!storedFavorites || typeof storedFavorites !== "object") {
+      throw new Error("Das Favoritenformat ist ungültig. Die Daten wurden nicht überschrieben.");
+    }
+    const favoriteRecord = storedFavorites as Record<string, unknown>;
+    if (
+      favoriteRecord.version !== 1 ||
+      !Array.isArray(favoriteRecord.items) ||
+      !favoriteRecord.items.every((item: unknown) => this.isFavoriteLocation(item))
+    ) {
+      throw new Error("Das Favoritenformat wird nicht unterstützt. Die Daten wurden nicht überschrieben.");
+    }
+    const favoriteItems = favoriteRecord.items as FavoriteLocationItem[];
+    if (new Set(favoriteItems.map((item) => item.id)).size !== favoriteItems.length) {
+      throw new Error("Die gespeicherten Favoriten enthalten doppelte Kennungen.");
+    }
+    return favoriteItems;
+  }
+
+  private writeFavorites(favoriteItems: FavoriteLocationItem[]): Promise<void> {
+    return asyncStorage.setItem(this.storageKey, JSON.stringify({ version: 1, items: favoriteItems }));
+  }
+
+  private isFavoriteLocation(value: unknown): value is FavoriteLocationItem {
+    if (!value || typeof value !== "object") {
+      return false;
+    }
+    const item = value as Record<string, unknown>;
+    return (
+      typeof item.id === "string" && item.id.length > 0 &&
+      typeof item.title === "string" && item.title.trim().length > 0 &&
+      typeof item.address === "string" &&
+      typeof item.latitude === "number" && Number.isFinite(item.latitude) && Math.abs(item.latitude) <= 90 &&
+      typeof item.longitude === "number" && Number.isFinite(item.longitude) && Math.abs(item.longitude) <= 180
+    );
   }
 }

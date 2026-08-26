@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   View,
   TextInput,
@@ -6,7 +6,9 @@ import {
   Text,
   FlatList,
   StyleSheet,
-  ActivityIndicator
+  ActivityIndicator,
+  Alert,
+  Keyboard
 } from "react-native";
 import { GeographicCoordinates, GeocodingSearchResult } from "../models/locationTypes";
 import { GeocodingService } from "../services/geocodingService";
@@ -17,43 +19,105 @@ import {
 
 interface SearchLocationBarProps {
   onSelectLocation: (coordinates: GeographicCoordinates, placeName: string) => void;
+  favoritesRevision: number;
+  disabled: boolean;
 }
 
 export const SearchLocationBar: React.FC<SearchLocationBarProps> = ({
-  onSelectLocation
+  onSelectLocation,
+  favoritesRevision,
+  disabled
 }) => {
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [searchResults, setSearchResults] = useState<GeocodingSearchResult[]>([]);
   const [isSearching, setIsSearching] = useState<boolean>(false);
   const [favoritesList, setFavoritesList] = useState<FavoriteLocationItem[]>([]);
+  const [searchError, setSearchError] = useState<string | null>(null);
+  const [favoriteError, setFavoriteError] = useState<string | null>(null);
+  const searchRevision = useRef(0);
 
   const geocodingService = GeocodingService.getInstance();
   const localStorageService = LocalFavoriteStorageService.getInstance();
 
   useEffect(() => {
-    setFavoritesList(localStorageService.getFavoriteLocations());
-  }, [localStorageService]);
+    let isCurrent = true;
+    localStorageService.getFavoriteLocations().then((items) => {
+      if (isCurrent) {
+        setFavoritesList(items);
+        setFavoriteError(null);
+      }
+    }).catch((error: unknown) => {
+      if (isCurrent) {
+        setFavoriteError(error instanceof Error ? error.message : "Favoriten konnten nicht geladen werden.");
+      }
+    });
+    return () => { isCurrent = false; };
+  }, [localStorageService, favoritesRevision]);
 
-  const handleSearch = async (text: string): Promise<void> => {
+  const handleSearch = (text: string): void => {
+    searchRevision.current += 1;
     setSearchQuery(text);
-    if (text.trim().length < 2) {
-      setSearchResults([]);
+    setSearchResults([]);
+    setSearchError(null);
+    setIsSearching(text.trim().length >= 2);
+  };
+
+  useEffect(() => {
+    const revision = searchRevision.current;
+    let isCurrent = true;
+    if (searchQuery.trim().length < 2) {
       return;
     }
-
-    setIsSearching(true);
-    const results = await geocodingService.searchPlaces(text);
-    setSearchResults(results);
-    setIsSearching(false);
-  };
+    const timeout = setTimeout(async () => {
+      try {
+        const results = await geocodingService.searchLocations(searchQuery);
+        if (isCurrent && revision === searchRevision.current) {
+          setSearchResults(results);
+          setSearchError(results.length === 0 ? "Keine Adresse gefunden." : null);
+        }
+      } catch {
+        if (isCurrent && revision === searchRevision.current) {
+          setSearchError("Adresssuche nicht verfügbar. Prüfe die Internetverbindung.");
+        }
+      } finally {
+        if (isCurrent && revision === searchRevision.current) {
+          setIsSearching(false);
+        }
+      }
+    }, 600);
+    return () => {
+      isCurrent = false;
+      clearTimeout(timeout);
+    };
+  }, [searchQuery, geocodingService]);
 
   const handleSelectItem = (
     coordinates: GeographicCoordinates,
     placeName: string
   ): void => {
-    setSearchQuery("");
-    setSearchResults([]);
+    if (disabled) {
+      return;
+    }
+    handleSearch("");
+    Keyboard.dismiss();
     onSelectLocation(coordinates, placeName);
+  };
+
+  const handleDeleteFavorite = (item: FavoriteLocationItem): void => {
+    Alert.alert("Favorit entfernen?", item.title, [
+      { text: "Abbrechen", style: "cancel" },
+      {
+        text: "Entfernen",
+        style: "destructive",
+        onPress: () => {
+          localStorageService.deleteFavoriteLocation(item.id).then(() => {
+            setFavoritesList((items) => items.filter((favorite) => favorite.id !== item.id));
+          }).catch((error: unknown) => {
+            setFavoriteError(error instanceof Error ? error.message : "Favorit konnte nicht entfernt werden.");
+          });
+        }
+      }
+    ]);
   };
 
   return (
@@ -62,15 +126,21 @@ export const SearchLocationBar: React.FC<SearchLocationBarProps> = ({
         <Text style={styles.searchIcon}>🔍</Text>
         <TextInput
           style={styles.inputField}
-          placeholder="Ort oder Koordinaten eingeben..."
+          placeholder="Adresse oder Koordinaten eingeben..."
           placeholderTextColor="#8E8E93"
           value={searchQuery}
           onChangeText={handleSearch}
           autoCorrect={false}
+          editable={!disabled}
+          accessibilityLabel="Adresse oder Koordinaten suchen"
           clearButtonMode="while-editing"
         />
         {isSearching && <ActivityIndicator size="small" color="#007AFF" />}
       </View>
+
+      {(searchError || favoriteError) && (
+        <Text style={styles.errorText} accessibilityRole="alert">{searchError || favoriteError}</Text>
+      )}
 
       {searchResults.length > 0 && (
         <View style={styles.resultsDropdown}>
@@ -81,6 +151,8 @@ export const SearchLocationBar: React.FC<SearchLocationBarProps> = ({
             renderItem={({ item }) => (
               <TouchableOpacity
                 style={styles.resultRow}
+                disabled={disabled}
+                accessibilityRole="button"
                 onPress={() =>
                   handleSelectItem(
                     { latitude: item.latitude, longitude: item.longitude },
@@ -108,6 +180,10 @@ export const SearchLocationBar: React.FC<SearchLocationBarProps> = ({
             renderItem={({ item }) => (
               <TouchableOpacity
                 style={styles.favoriteChip}
+                disabled={disabled}
+                accessibilityRole="button"
+                accessibilityHint="Auswählen; zum Entfernen gedrückt halten"
+                onLongPress={() => handleDeleteFavorite(item)}
                 onPress={() =>
                   handleSelectItem(
                     { latitude: item.latitude, longitude: item.longitude },
@@ -128,7 +204,7 @@ export const SearchLocationBar: React.FC<SearchLocationBarProps> = ({
 const styles = StyleSheet.create({
   container: {
     position: "absolute",
-    top: 60,
+    top: 12,
     left: 16,
     right: 16,
     zIndex: 100
@@ -136,14 +212,14 @@ const styles = StyleSheet.create({
   searchBarWrapper: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "rgba(255, 255, 255, 0.96)",
-    borderRadius: 14,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 8,
     paddingHorizontal: 12,
     paddingVertical: 10,
     shadowColor: "#000000",
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 10,
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
     elevation: 6
   },
   searchIcon: {
@@ -158,13 +234,13 @@ const styles = StyleSheet.create({
   },
   resultsDropdown: {
     backgroundColor: "#FFFFFF",
-    borderRadius: 14,
+    borderRadius: 8,
     marginTop: 6,
     maxHeight: 220,
     shadowColor: "#000000",
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.18,
-    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
     elevation: 8,
     overflow: "hidden"
   },
@@ -188,10 +264,10 @@ const styles = StyleSheet.create({
     marginTop: 8
   },
   favoriteChip: {
-    backgroundColor: "rgba(255, 255, 255, 0.94)",
+    backgroundColor: "#FFFFFF",
     paddingHorizontal: 12,
-    paddingVertical: 7,
-    borderRadius: 18,
+    paddingVertical: 12,
+    borderRadius: 8,
     marginRight: 8,
     shadowColor: "#000000",
     shadowOffset: { width: 0, height: 2 },
@@ -203,5 +279,12 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: "600",
     color: "#1C1C1E"
+  },
+  errorText: {
+    color: "#B42318",
+    backgroundColor: "#FFFFFF",
+    padding: 8,
+    marginTop: 4,
+    borderRadius: 8
   }
 });

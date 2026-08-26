@@ -2,55 +2,74 @@ name: Build Expo iOS IPA
 
 on:
   push:
-    branches:
-      - main
-      - master
+    branches: [main, master]
   pull_request:
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   build:
-    runs-on: macos-14
+    runs-on: macos-15
+    timeout-minutes: 60
+    defaults:
+      run:
+        working-directory: expoApp
     steps:
-      - name: Checkout Code
+      - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Node Environment
+      - name: Node
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
+          cache: npm
+          cache-dependency-path: expoApp/package-lock.json
 
-      - name: Select Xcode 16 Version
+      - name: Select Xcode
         run: |
-          if [ -d "/Applications/Xcode_16.1.app" ]; then
-            sudo xcode-select -switch /Applications/Xcode_16.1.app
-          elif [ -d "/Applications/Xcode_16.0.app" ]; then
-            sudo xcode-select -switch /Applications/Xcode_16.0.app
+          if [ -d "/Applications/Xcode_16.4.app" ]; then
+            sudo xcode-select --switch /Applications/Xcode_16.4.app
           elif [ -d "/Applications/Xcode_16.2.app" ]; then
-            sudo xcode-select -switch /Applications/Xcode_16.2.app
+            sudo xcode-select --switch /Applications/Xcode_16.2.app
+          elif [ -d "/Applications/Xcode_16.1.app" ]; then
+            sudo xcode-select --switch /Applications/Xcode_16.1.app
+          elif [ -d "/Applications/Xcode_16.0.app" ]; then
+            sudo xcode-select --switch /Applications/Xcode_16.0.app
           elif [ -d "/Applications/Xcode_16.app" ]; then
-            sudo xcode-select -switch /Applications/Xcode_16.app
+            sudo xcode-select --switch /Applications/Xcode_16.app
           else
-            sudo xcode-select -switch /Applications/Xcode.app
+            sudo xcode-select --switch /Applications/Xcode.app
           fi
 
-      - name: Install Dependencies
-        run: |
-          cd expoApp
-          npm install
+      - name: Install dependencies
+        run: npm ci
 
-      - name: Prebuild Native iOS Project
+      - name: Test TypeScript services
         run: |
-          cd expoApp
-          npx expo prebuild --platform ios --clean
+          npm run typecheck
+          npm test
 
-      - name: Build Application Bundle
+      - name: Build and test native engine
         run: |
-          cd expoApp/ios
-          WORKSPACE_NAME=$(ls -d *.xcworkspace | head -n 1)
-          SCHEME_NAME=$(basename "$WORKSPACE_NAME" .xcworkspace)
-          xcodebuild -workspace "$WORKSPACE_NAME" \
-            -scheme "$SCHEME_NAME" \
+          rustup toolchain install 1.94.0 --profile minimal --component clippy --component rustfmt
+          npm run buildNativeEngine
+          cargo +1.94.0 clippy --manifest-path nativeEngine/Cargo.toml --locked --all-targets -- -D warnings
+
+      - name: Generate iOS project
+        run: npx expo prebuild --platform ios --clean
+
+      - name: Build application
+        working-directory: expoApp/ios
+        run: |
+          set -euo pipefail
+          workspaces=(*.xcworkspace)
+          test "${#workspaces[@]}" -eq 1
+          workspaceName="${workspaces[0]}"
+          schemeName="${workspaceName%.xcworkspace}"
+          xcodebuild -workspace "$workspaceName" \
+            -scheme "$schemeName" \
             -sdk iphoneos \
             -configuration Release \
             -destination "generic/platform=iOS" \
@@ -58,25 +77,27 @@ jobs:
             CODE_SIGN_IDENTITY="" \
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGNING_ALLOWED=NO \
-            clean build
+            build
 
-      - name: Apply Ad-Hoc Signature
+      - name: Package IPA for sideload signing
+        working-directory: expoApp/ios
         run: |
-          cd expoApp/ios
-          APP_PATH=$(find build/Build/Products/Release-iphoneos -name "*.app" -maxdepth 1 | head -n 1)
-          codesign --force --deep --sign - "$APP_PATH"
-
-      - name: Package IPA Archive
-        run: |
-          cd expoApp/ios
+          set -euo pipefail
+          apps=(build/Build/Products/Release-iphoneos/*.app)
+          test "${#apps[@]}" -eq 1
+          appPath="${apps[0]}"
+          test -d "$appPath"
+          codesign --force --deep --sign - "$appPath"
           mkdir -p Payload
-          APP_PATH=$(find build/Build/Products/Release-iphoneos -name "*.app" -maxdepth 1 | head -n 1)
-          cp -r "$APP_PATH" Payload/
-          zip -r expoApp.ipa Payload
+          cp -R "$appPath" Payload/
+          zip -q -r expoApp.ipa Payload
+          shasum -a 256 expoApp.ipa > expoAppChecksum.txt
 
-      - name: Upload IPA Artifact
+      - name: Upload IPA
         uses: actions/upload-artifact@v4
         with:
           name: expoApp-ipa
-          path: expoApp/ios/expoApp.ipa
+          path: |
+            expoApp/ios/expoApp.ipa
+            expoApp/ios/expoAppChecksum.txt
           retention-days: 7

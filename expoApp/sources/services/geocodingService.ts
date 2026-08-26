@@ -1,3 +1,4 @@
+import * as location from "expo-location";
 import {
   GeographicCoordinates,
   GeocodingSearchResult,
@@ -35,72 +36,33 @@ export class GeocodingService {
       ];
     }
 
-    try {
-      const encodedQuery = encodeURIComponent(trimmedQuery);
-      const requestUrl = `https://nominatim.openstreetmap.org/search?format=json&q=${encodedQuery}&limit=6&addressdetails=1`;
-
-      const response = await fetch(requestUrl, {
-        headers: {
-          "User-Agent": "LocationChangerApp/1.0"
-        }
-      });
-
-      if (!response.ok) {
-        return [];
-      }
-
-      const responseJson = await response.json();
-      return responseJson.map((item: any) => ({
-        placeId: String(item.place_id),
-        displayName: item.display_name,
-        cityName:
-          item.address?.city ||
-          item.address?.town ||
-          item.address?.village ||
-          item.address?.county ||
-          item.name ||
-          "Unbekannter Ort",
-        latitude: parseFloat(item.lat),
-        longitude: parseFloat(item.lon)
-      }));
-    } catch {
-      return [];
-    }
+    const results = await location.geocodeAsync(trimmedQuery);
+    return results.slice(0, 6).map((item, index) => ({
+      placeId: `address${index}${item.latitude}${item.longitude}`,
+      displayName: `${trimmedQuery} · ${item.latitude.toFixed(5)}, ${item.longitude.toFixed(5)}`,
+      cityName: trimmedQuery,
+      latitude: item.latitude,
+      longitude: item.longitude
+    }));
   }
 
   public async reverseGeocode(
     coordinates: GeographicCoordinates
   ): Promise<LocationInformation> {
     try {
-      const requestUrl = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${coordinates.latitude}&lon=${coordinates.longitude}&zoom=18&addressdetails=1`;
-
-      const response = await fetch(requestUrl, {
-        headers: {
-          "User-Agent": "LocationChangerApp/1.0"
-        }
-      });
-
-      if (!response.ok) {
+      const [address] = await location.reverseGeocodeAsync(coordinates);
+      if (!address) {
         return this.createFallbackLocationInformation(coordinates);
       }
-
-      const responseJson = await response.json();
-      const addressObject = responseJson.address || {};
-
-      const cityName =
-        addressObject.city ||
-        addressObject.town ||
-        addressObject.village ||
-        addressObject.municipality ||
-        "Position";
-
-      const countryName = addressObject.country || "Weltweit";
-
+      const streetAddress = [address.street, address.streetNumber].filter(Boolean).join(" ");
+      const cityAddress = [address.postalCode, address.city || address.subregion].filter(Boolean).join(" ");
+      const formattedAddress = [streetAddress || address.name, cityAddress, address.country]
+        .filter(Boolean).join(", ");
       return {
-        coordinates,
-        formattedAddress: responseJson.display_name || `${coordinates.latitude}, ${coordinates.longitude}`,
-        cityName,
-        countryName,
+        coordinates: { ...coordinates },
+        formattedAddress: formattedAddress || `${coordinates.latitude}, ${coordinates.longitude}`,
+        cityName: address.city || address.subregion || address.name || "Gewählter Standort",
+        countryName: address.country || "",
         timestamp: Date.now()
       };
     } catch {
@@ -131,7 +93,7 @@ export class GeocodingService {
   ): LocationInformation {
     return {
       coordinates,
-      formattedAddress: `Breite: ${coordinates.latitude.toFixed(5)}, Länge: ${coordinates.longitude.toFixed(5)}`,
+      formattedAddress: `Adresse nicht verfügbar · ${coordinates.latitude.toFixed(5)}, ${coordinates.longitude.toFixed(5)}`,
       cityName: "Gewählter Standort",
       countryName: "GPS-Punkt",
       timestamp: Date.now()

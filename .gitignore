@@ -4,3 +4,6 @@ dist/
 buildArtifacts/
 .DS_Store
 *.ipa
+expoApp/nativeEngine/target/
+expoApp/modules/onDeviceLocation/ios/frameworks/
+expoApp/ios/
