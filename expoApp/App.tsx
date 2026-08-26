@@ -1,6 +1,11 @@
 import React from "react";
+import { registerRootComponent } from "expo";
 import { ContentView } from "./sources/ui/contentView";
 
-export default function App(): React.JSX.Element {
+function App(): React.JSX.Element {
   return <ContentView />;
 }
+
+registerRootComponent(App);
+
+export default App;
