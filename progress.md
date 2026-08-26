@@ -3,18 +3,17 @@
 ## A) Aktueller Projektstatus
 
 ### Vollständig umgesetzte Features
-- **Location Changer & GPS Simulator App (`expoApp/`)**:
-  - **Interaktive Kartenoberfläche (`locationMapScreen.tsx`)**: Vollbild-Weltkarte mit flüssigem Panning, Zooming, Pin-Dropping und Zentrierungs-Funktion.
-  - **Such- & Geocoding-System (`searchLocationBar.tsx`, `geocodingService.ts`)**: Weltweite Adress- und Ortssuche, Direkt-Koordinateneingabe (`Lat, Lng`), automatische Vorschläge und Schnellwahl-Favoriten (Berlin, Paris, Tokio, New York, London, Dubai).
-  - **Virtuelle Joystick-Steuerung (`joystickControlOverlay.tsx`, `locationSimulationService.ts`)**: 4-Wege Richtungs-Steuerung mit Halte-Automatik und Geschwindigkeitsstufen (Gehen: 5 km/h, Fahrrad: 20 km/h, Auto: 60 km/h, Flug: 300 km/h) zur Echtzeit-Bewegungssimulation.
-  - **Standort-Detailansicht & GPX-Export (`locationDetailsModal.tsx`, `gpxExportService.ts`)**: Reverse-Geocoding der gewählten Position, Koordinatenanzeige und GPX-Track-Generierung für Entwicklertools.
-  - **Live-Development**: Live-Server auf Expo SDK 54 aktiv (Echtzeit Hot-Reloading in Expo Go).
-- **Native SwiftUI App (`iosApp/`)**: Native SwiftUI Test-App mit `project.pbxproj` und validierter `testApp.ipa`.
-- **CI/CD Build-Pipelines via GitHub Actions**:
-  - `buildIpa.yml`: Native App `.ipa`.
-  - `buildExpoIpa.yml`: Expo Standalone `.ipa`.
+- **Location Changer mit nativer Apple Maps Engine (`expoApp/`)**:
+  - **100% Native Apple MapKit (`MKMapView`)**: Direkte Vektorkarten über Apple Server mit 3D-Gebäuden und nativer Gestensteuerung.
+  - **Nativer Apple Standort-Punkt (`showsUserLocation`)**: Echter blauer Apple-Puls-Punkt mit integriertem Blickrichtungs-Kegel.
+  - **Vollständiges Steuerungs- & Simulations-System**:
+    - Roter Apple-Marker für den Fake-Standort (frei verschiebbar per Drag & Drop).
+    - Weltweite Adress- und Koordinatensuche (`searchLocationBar.tsx`).
+    - Virtueller 4-Wege-Joystick mit variabler Geschwindigkeit (5, 20, 60, 300 km/h).
+    - GPX-Export für Entwicklertools.
+  - **Native IPA mit Xcode 16**: `expoApp.ipa` mit vollwertigen Apple MapKit C++ TurboModules kompiliert und ad-hoc signiert (Run ID: `32977801464` in 3m 3s erfolgreich).
 - **Lokale Ausgabedateien**:
-  - `buildArtifacts/expoApp-ipa/expoApp.ipa` (Expo Standalone App für Sideloadly)
+  - `buildArtifacts/expoApp-ipa/expoApp.ipa` (Native Apple MapKit App für Sideloadly)
   - `buildArtifacts/testApp-ipa/testApp.ipa` (Native SwiftUI App)
 - Remote-Repository auf GitHub: `https://github.com/KS55aa/iosTestApp`.
 
@@ -22,17 +21,17 @@
 - Keine.
 
 ### Geplante Features
-- Veltic Backend Integration zur Speicherung von Benutzer-Favoriten und Routen in der Cloud (`veltic databases` / `veltic apps`).
 - Multi-Point Routen-Generator (A-nach-B Wegfindung).
+- Veltic Cloud Synchronisation für Favoriten.
 
 ---
 
 ## B) Architektur- und Designentscheidungen
 
 ### Getroffene technische Entscheidungen
-- **Leaflet & React Native WebView**: Verwendung von OpenStreetMap Tiles ohne API-Key-Zwang für uneingeschränkte weltweite Kartendarstellung in Expo Go und Standalone IPA.
-- **Entkoppelte Simulations-Logik**: Mathematische Distanz- und Kursberechnungen (Haversine-Formel, sphärische Trigonometrie) im `locationSimulationService` gekapselt.
-- **Standardisiertes GPX-Format**: `gpxExportService` generiert valides XML 1.1 für nahtlose Kompatibilität mit Apple DVT und Sideload-Werkzeugen.
+- **Native Apple MapKit Integration**: Verwendung von `react-native-maps` mit `PROVIDER_DEFAULT` (`MKMapView`) kompiliert mit Xcode 16.
+- **Einmalige Installation für Live-Reload**: Die installierte IPA enthält die nativen C++ Treiber und verbindet sich im Alltag direkt mit `npx expo start`, wodurch Code-Änderungen in unter 1 Sekunde live aktualisiert werden, ohne jemals neu builden zu müssen.
+- **Gleicher Bundle Identifier (`com.testlab.expoApp`)**: Bei erneuten Installationen wird die bestehende App auf dem iPhone sauber überschrieben und aktualisiert, anstatt ein zweites App-Icon zu erzeugen.
 
 ---
 
@@ -40,7 +39,7 @@
 
 ### Übersicht der Dateien und Verantwortlichkeiten
 
-- `expoApp/sources/ui/locationMapScreen.tsx`: Hauptschirm mit Kartenintegration und Modul-Orchestrierung.
+- `expoApp/sources/ui/locationMapScreen.tsx`: Native Apple `MKMapView` Ansicht mit Steuerungselementen.
 - `expoApp/sources/ui/searchLocationBar.tsx`: Suchfeld, Geocoding-Autovervollständigung und Favoriten-Chips.
 - `expoApp/sources/ui/joystickControlOverlay.tsx`: Virtueller D-Pad Joystick mit Geschwindigkeitsumschaltung.
 - `expoApp/sources/ui/locationDetailsModal.tsx`: Standortkarte mit Reverse-Geocoding und GPX-Export.
@@ -48,7 +47,8 @@
 - `expoApp/sources/services/geocodingService.ts`: Vorwärts- und Rückwärts-Geocoding via OpenStreetMap.
 - `expoApp/sources/services/gpxExportService.ts`: GPX-XML Export Generator.
 - `expoApp/sources/models/locationTypes.ts`: Strikte TypeScript Schnittstellen.
-- `expoApp/sources/config/mapConfiguration.ts`: Standard-Koordinaten, Favoriten und Leaflet HTML Engine.
+- `expoApp/sources/config/mapConfiguration.ts`: Standard-Koordinaten und Favoriten.
+- `buildArtifacts/expoApp-ipa/expoApp.ipa`: Fertige native Apple MapKit IPA für Sideloadly.
 - `progress.md`: Projektstatus und Gesamtdokumentation.
 
 ### Zusammenspiel der Komponenten
