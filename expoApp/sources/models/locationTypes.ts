@@ -47,3 +47,9 @@ export interface WaypointRecord {
 }
 
 export type AppleMapDisplayType = "standard" | "satellite" | "hybrid";
+
+export interface SystemLocationSpoofingState {
+  isActive: boolean;
+  activeCoordinates: GeographicCoordinates | null;
+  activatedTimestamp: number | null;
+}

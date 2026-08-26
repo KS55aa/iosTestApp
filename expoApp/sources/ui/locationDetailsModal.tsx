@@ -1,44 +1,50 @@
 import React from "react";
-import { View, Text, TouchableOpacity, StyleSheet, Share } from "react-native";
+import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
 import { GeographicCoordinates, LocationInformation } from "../models/locationTypes";
-import { GpxExportService } from "../services/gpxExportService";
 
 interface LocationDetailsModalProps {
   locationInfo: LocationInformation | null;
   currentCoordinates: GeographicCoordinates;
+  isSpoofingActive: boolean;
   onCenterMap: () => void;
+  onToggleSpoofing: () => void;
 }
 
 export const LocationDetailsModal: React.FC<LocationDetailsModalProps> = ({
   locationInfo,
   currentCoordinates,
-  onCenterMap
+  isSpoofingActive,
+  onCenterMap,
+  onToggleSpoofing
 }) => {
-  const gpxExportService = GpxExportService.getInstance();
-
-  const handleExportGpx = async (): Promise<void> => {
-    const gpxContent = gpxExportService.generateSingleWaypointGpx(
-      currentCoordinates,
-      locationInfo?.cityName || "Simulierter Standort"
-    );
-
-    try {
-      await Share.share({
-        title: "simulated_location.gpx",
-        message: gpxContent
-      });
-    } catch {
-      return;
-    }
-  };
-
   return (
     <View style={styles.cardContainer}>
       <View style={styles.topRow}>
         <View style={styles.locationInfoCol}>
-          <Text style={styles.cityText} numberOfLines={1}>
-            📍 {locationInfo?.cityName || "Ausgewählter Ort"}
-          </Text>
+          <View style={styles.titleWithStatusRow}>
+            <Text style={styles.cityText} numberOfLines={1}>
+              📍 {locationInfo?.cityName || "Ausgewählter Ort"}
+            </Text>
+            <View
+              style={[
+                styles.statusIndicatorBadge,
+                isSpoofingActive
+                  ? styles.statusIndicatorBadgeActive
+                  : styles.statusIndicatorBadgeInactive
+              ]}
+            >
+              <Text
+                style={[
+                  styles.statusIndicatorText,
+                  isSpoofingActive
+                    ? styles.statusIndicatorTextActive
+                    : styles.statusIndicatorTextInactive
+                ]}
+              >
+                {isSpoofingActive ? "🟢 Systemweit aktiv" : "⚪ Ausgewählt"}
+              </Text>
+            </View>
+          </View>
           <Text style={styles.addressText} numberOfLines={1}>
             {locationInfo?.formattedAddress || "Wird ermittelt..."}
           </Text>
@@ -53,19 +59,26 @@ export const LocationDetailsModal: React.FC<LocationDetailsModalProps> = ({
 
       <View style={styles.buttonRow}>
         <TouchableOpacity
-          style={styles.primaryActionButton}
+          style={styles.secondaryActionButton}
           onPress={onCenterMap}
           activeOpacity={0.8}
         >
-          <Text style={styles.primaryActionText}>🎯 Zentrieren</Text>
+          <Text style={styles.secondaryActionText}>🎯 Zentrieren</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
-          style={styles.secondaryActionButton}
-          onPress={handleExportGpx}
+          style={[
+            styles.primaryActionButton,
+            isSpoofingActive
+              ? styles.primaryActionButtonActive
+              : styles.primaryActionButtonInactive
+          ]}
+          onPress={onToggleSpoofing}
           activeOpacity={0.8}
         >
-          <Text style={styles.secondaryActionText}>💾 GPX Export</Text>
+          <Text style={styles.primaryActionText}>
+            {isSpoofingActive ? "🔄 Standort zurücksetzen" : "📍 Standort setzen"}
+          </Text>
         </TouchableOpacity>
       </View>
     </View>
@@ -79,34 +92,61 @@ const styles = StyleSheet.create({
     left: 16,
     right: 16,
     backgroundColor: "rgba(255, 255, 255, 0.96)",
-    borderRadius: 18,
-    padding: 14,
+    borderRadius: 20,
+    padding: 16,
     shadowColor: "#000000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.18,
-    shadowRadius: 12,
-    elevation: 8,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.2,
+    shadowRadius: 14,
+    elevation: 10,
     zIndex: 80
   },
   topRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "flex-start",
-    marginBottom: 10
+    marginBottom: 12
   },
   locationInfoCol: {
     flex: 1,
     marginRight: 8
+  },
+  titleWithStatusRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    flexWrap: "wrap"
   },
   cityText: {
     fontSize: 16,
     fontWeight: "700",
     color: "#1C1C1E"
   },
+  statusIndicatorBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 10
+  },
+  statusIndicatorBadgeActive: {
+    backgroundColor: "rgba(52, 199, 89, 0.15)"
+  },
+  statusIndicatorBadgeInactive: {
+    backgroundColor: "rgba(142, 142, 147, 0.12)"
+  },
+  statusIndicatorText: {
+    fontSize: 10,
+    fontWeight: "700"
+  },
+  statusIndicatorTextActive: {
+    color: "#28CD41"
+  },
+  statusIndicatorTextInactive: {
+    color: "#8E8E93"
+  },
   addressText: {
     fontSize: 12,
     color: "#8E8E93",
-    marginTop: 2
+    marginTop: 3
   },
   badgeCol: {
     alignItems: "flex-end"
@@ -115,33 +155,20 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: "600",
     color: "#007AFF",
-    backgroundColor: "rgba(0, 122, 255, 0.12)",
+    backgroundColor: "rgba(0, 122, 255, 0.1)",
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 8
   },
   buttonRow: {
     flexDirection: "row",
-    gap: 8
-  },
-  primaryActionButton: {
-    flex: 1,
-    backgroundColor: "#007AFF",
-    borderRadius: 10,
-    paddingVertical: 10,
-    alignItems: "center",
-    justifyContent: "center"
-  },
-  primaryActionText: {
-    color: "#FFFFFF",
-    fontSize: 14,
-    fontWeight: "600"
+    gap: 10
   },
   secondaryActionButton: {
     flex: 1,
-    backgroundColor: "#E5E5EA",
-    borderRadius: 10,
-    paddingVertical: 10,
+    backgroundColor: "#F2F2F7",
+    borderRadius: 12,
+    paddingVertical: 12,
     alignItems: "center",
     justifyContent: "center"
   },
@@ -149,5 +176,28 @@ const styles = StyleSheet.create({
     color: "#1C1C1E",
     fontSize: 14,
     fontWeight: "600"
+  },
+  primaryActionButton: {
+    flex: 2,
+    borderRadius: 12,
+    paddingVertical: 12,
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: "#000000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+    elevation: 3
+  },
+  primaryActionButtonInactive: {
+    backgroundColor: "#007AFF"
+  },
+  primaryActionButtonActive: {
+    backgroundColor: "#FF3B30"
+  },
+  primaryActionText: {
+    color: "#FFFFFF",
+    fontSize: 14,
+    fontWeight: "700"
   }
 });

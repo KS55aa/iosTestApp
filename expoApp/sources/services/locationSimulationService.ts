@@ -1,7 +1,8 @@
 import {
   GeographicCoordinates,
   CardinalDirection,
-  MovementSpeedPreset
+  MovementSpeedPreset,
+  SystemLocationSpoofingState
 } from "../models/locationTypes";
 
 export class LocationSimulationService {
@@ -10,6 +11,12 @@ export class LocationSimulationService {
   private currentCoordinates: GeographicCoordinates = {
     latitude: 52.516275,
     longitude: 13.377704
+  };
+
+  private spoofingState: SystemLocationSpoofingState = {
+    isActive: false,
+    activeCoordinates: null,
+    activatedTimestamp: null
   };
 
   private constructor() {}
@@ -32,6 +39,31 @@ export class LocationSimulationService {
     };
   }
 
+  public activateSystemLocationSpoofing(
+    coordinates: GeographicCoordinates
+  ): SystemLocationSpoofingState {
+    this.setCoordinates(coordinates);
+    this.spoofingState = {
+      isActive: true,
+      activeCoordinates: { ...coordinates },
+      activatedTimestamp: Date.now()
+    };
+    return { ...this.spoofingState };
+  }
+
+  public resetSystemLocationSpoofing(): SystemLocationSpoofingState {
+    this.spoofingState = {
+      isActive: false,
+      activeCoordinates: null,
+      activatedTimestamp: null
+    };
+    return { ...this.spoofingState };
+  }
+
+  public getSpoofingState(): SystemLocationSpoofingState {
+    return { ...this.spoofingState };
+  }
+
   public calculateNextPosition(
     direction: CardinalDirection,
     speedPreset: MovementSpeedPreset,
@@ -48,6 +80,9 @@ export class LocationSimulationService {
     );
 
     this.currentCoordinates = nextCoordinates;
+    if (this.spoofingState.isActive) {
+      this.spoofingState.activeCoordinates = { ...nextCoordinates };
+    }
     return nextCoordinates;
   }
 

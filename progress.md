@@ -3,17 +3,18 @@
 ## A) Aktueller Projektstatus
 
 ### Vollständig umgesetzte Features
-- **Location Changer mit nativer Apple Maps Engine (`expoApp/`)**:
+- **Location Changer mit nativer Apple Maps Engine & Standort-Dialog (`expoApp/`)**:
   - **100% Native Apple MapKit (`MKMapView`)**: Direkte Vektorkarten über Apple Server mit 3D-Gebäuden und nativer Gestensteuerung.
-  - **Nativer Apple Standort-Punkt (`showsUserLocation`)**: Echter blauer Apple-Puls-Punkt mit integriertem Blickrichtungs-Kegel.
+  - **Echter Apple Standort-Punkt (`showsUserLocation`)**: Automatische Berechtigungs-Abfrage via `expo-location` (`~19.0.8`) beim Start der App mit automatischem Kamera-Flug zum echten Standort.
   - **Vollständiges Steuerungs- & Simulations-System**:
     - Roter Apple-Marker für den Fake-Standort (frei verschiebbar per Drag & Drop).
     - Weltweite Adress- und Koordinatensuche (`searchLocationBar.tsx`).
     - Virtueller 4-Wege-Joystick mit variabler Geschwindigkeit (5, 20, 60, 300 km/h).
     - GPX-Export für Entwicklertools.
-  - **Native IPA mit Xcode 16**: `expoApp.ipa` mit vollwertigen Apple MapKit C++ TurboModules kompiliert und ad-hoc signiert (Run ID: `32977801464` in 3m 3s erfolgreich).
+  - **Native IPA mit Xcode 16**: `expoApp.ipa` in nur **2m 57s** fehlerfrei kompiliert (Run ID: `32978585833`).
+- **Lokaler Entwicklungsmodus**: Metro Bundler (`task-616`) aktiv mit 0 Fehlern / 0 Warnungen für sofortiges Live-Reloading.
 - **Lokale Ausgabedateien**:
-  - `buildArtifacts/expoApp-ipa/expoApp.ipa` (Native Apple MapKit App für Sideloadly)
+  - `buildArtifacts/expoApp-ipa/expoApp.ipa` (Native Apple MapKit App mit Standort-Dialog)
   - `buildArtifacts/testApp-ipa/testApp.ipa` (Native SwiftUI App)
 - Remote-Repository auf GitHub: `https://github.com/KS55aa/iosTestApp`.
 

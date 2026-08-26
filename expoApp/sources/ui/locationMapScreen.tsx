@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
-import { View, StyleSheet, StatusBar, SafeAreaView, TouchableOpacity, Text } from "react-native";
+import { View, StyleSheet, StatusBar, SafeAreaView, TouchableOpacity, Text, Alert } from "react-native";
 import MapView, { Marker, Region, PROVIDER_DEFAULT } from "react-native-maps";
 import {
   GeographicCoordinates,
@@ -19,6 +19,7 @@ export const LocationMapScreen: React.FC = () => {
   );
   const [locationInfo, setLocationInfo] = useState<LocationInformation | null>(null);
   const [mapDisplayType, setMapDisplayType] = useState<AppleMapDisplayType>("standard");
+  const [isSpoofingActive, setIsSpoofingActive] = useState<boolean>(false);
 
   const mapRef = useRef<MapView>(null);
   const simulationService = LocationSimulationService.getInstance();
@@ -119,6 +120,25 @@ export const LocationMapScreen: React.FC = () => {
     }
   };
 
+  const handleToggleSpoofing = async (): Promise<void> => {
+    if (!isSpoofingActive) {
+      simulationService.activateSystemLocationSpoofing(currentCoordinates);
+      setIsSpoofingActive(true);
+      Alert.alert(
+        "Standort gesetzt!",
+        `Der Standort wurde erfolgreich auf ${locationInfo?.cityName || "die gewählten Koordinaten"} gesetzt.`
+      );
+    } else {
+      simulationService.resetSystemLocationSpoofing();
+      setIsSpoofingActive(false);
+      await handleLocateMe();
+      Alert.alert(
+        "Standort zurückgesetzt",
+        "Der Standort wurde wieder auf dein reales GPS zurückgesetzt."
+      );
+    }
+  };
+
   const toggleMapType = (): void => {
     if (mapDisplayType === "standard") {
       setMapDisplayType("satellite");
@@ -159,7 +179,7 @@ export const LocationMapScreen: React.FC = () => {
             title={locationInfo?.cityName || "Simulierter Standort"}
             description={locationInfo?.formattedAddress || ""}
             draggable={true}
-            pinColor="#FF3B30"
+            pinColor={isSpoofingActive ? "#34C759" : "#FF3B30"}
             onDragEnd={(event) => handleMarkerDragEnd(event.nativeEvent.coordinate)}
           />
         </MapView>
@@ -189,7 +209,9 @@ export const LocationMapScreen: React.FC = () => {
         <LocationDetailsModal
           locationInfo={locationInfo}
           currentCoordinates={currentCoordinates}
+          isSpoofingActive={isSpoofingActive}
           onCenterMap={handleCenterOnMarker}
+          onToggleSpoofing={handleToggleSpoofing}
         />
       </View>
     </SafeAreaView>
