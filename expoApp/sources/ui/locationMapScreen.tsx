@@ -20,7 +20,6 @@ export const LocationMapScreen: React.FC = () => {
   const [locationInfo, setLocationInfo] = useState<LocationInformation | null>(null);
   const [mapDisplayType, setMapDisplayType] = useState<AppleMapDisplayType>("standard");
   const [isSpoofingActive, setIsSpoofingActive] = useState<boolean>(false);
-  const [realDeviceCoordinates, setRealDeviceCoordinates] = useState<GeographicCoordinates | null>(null);
 
   const mapRef = useRef<MapView>(null);
   const simulationService = LocationSimulationService.getInstance();
@@ -38,7 +37,6 @@ export const LocationMapScreen: React.FC = () => {
   const initializeUserLocation = useCallback(async (): Promise<void> => {
     const realLocation = await deviceLocationService.requestPermissionAndGetLocation();
     if (realLocation) {
-      setRealDeviceCoordinates(realLocation);
       simulationService.setCoordinates(realLocation);
       setCurrentCoordinates(realLocation);
       updateLocationMetadata(realLocation);
@@ -108,7 +106,6 @@ export const LocationMapScreen: React.FC = () => {
   const handleLocateMe = async (): Promise<void> => {
     const realLocation = await deviceLocationService.requestPermissionAndGetLocation();
     if (realLocation) {
-      setRealDeviceCoordinates(realLocation);
       simulationService.setCoordinates(realLocation);
       setCurrentCoordinates(realLocation);
       updateLocationMetadata(realLocation);
@@ -125,19 +122,29 @@ export const LocationMapScreen: React.FC = () => {
 
   const handleToggleSpoofing = async (): Promise<void> => {
     if (!isSpoofingActive) {
-      simulationService.activateSystemLocationSpoofing(currentCoordinates);
+      await simulationService.activateSystemLocationSpoofing(currentCoordinates);
       setIsSpoofingActive(true);
+
+      const targetRegion: Region = {
+        latitude: currentCoordinates.latitude,
+        longitude: currentCoordinates.longitude,
+        latitudeDelta: 0.008,
+        longitudeDelta: 0.008
+      };
+      mapRef.current?.animateToRegion(targetRegion, 600);
+
       Alert.alert(
-        "Standort gesetzt!",
-        `Dein Standort wurde auf ${locationInfo?.cityName || "die gewählte Position"} verschoben.`
+        "Standort aktiv gesetzt!",
+        `Dein Standort wurde erfolgreich auf ${locationInfo?.cityName || "die gewählte Position"} gesetzt.`
       );
     } else {
-      simulationService.resetSystemLocationSpoofing();
+      await simulationService.resetSystemLocationSpoofing();
       setIsSpoofingActive(false);
       await handleLocateMe();
+
       Alert.alert(
         "Standort zurückgesetzt",
-        "Der Standort wurde wieder auf dein reales GPS zurückgesetzt."
+        "Dein Standort wurde wieder auf dein reales GPS zurückgesetzt."
       );
     }
   };
@@ -167,42 +174,28 @@ export const LocationMapScreen: React.FC = () => {
             latitudeDelta: 0.015,
             longitudeDelta: 0.015
           }}
-          showsUserLocation={!isSpoofingActive}
+          showsUserLocation={true}
           showsMyLocationButton={false}
           showsCompass={true}
           showsScale={true}
           showsBuildings={true}
           onPress={(event) => handleMapPress(event.nativeEvent.coordinate)}
         >
-          {isSpoofingActive ? (
-            <Marker
-              coordinate={{
-                latitude: currentCoordinates.latitude,
-                longitude: currentCoordinates.longitude
-              }}
-              title={locationInfo?.cityName || "Aktiver simulierter Standort"}
-              description={locationInfo?.formattedAddress || ""}
-              draggable={true}
-              onDragEnd={(event) => handleMarkerDragEnd(event.nativeEvent.coordinate)}
-            >
-              <View style={styles.customBlueDotContainer}>
-                <View style={styles.customBlueDotHalo} />
-                <View style={styles.customBlueDotCore} />
-              </View>
-            </Marker>
-          ) : (
-            <Marker
-              coordinate={{
-                latitude: currentCoordinates.latitude,
-                longitude: currentCoordinates.longitude
-              }}
-              title={locationInfo?.cityName || "Simulierter Standort"}
-              description={locationInfo?.formattedAddress || ""}
-              draggable={true}
-              pinColor="#FF3B30"
-              onDragEnd={(event) => handleMarkerDragEnd(event.nativeEvent.coordinate)}
-            />
-          )}
+          <Marker
+            coordinate={{
+              latitude: currentCoordinates.latitude,
+              longitude: currentCoordinates.longitude
+            }}
+            title={
+              isSpoofingActive
+                ? `🔵 ${locationInfo?.cityName || "Aktiver Standort"}`
+                : `📍 ${locationInfo?.cityName || "Gewählter Standort"}`
+            }
+            description={locationInfo?.formattedAddress || ""}
+            draggable={true}
+            pinColor={isSpoofingActive ? "#007AFF" : "#FF3B30"}
+            onDragEnd={(event) => handleMarkerDragEnd(event.nativeEvent.coordinate)}
+          />
         </MapView>
 
         <SearchLocationBar onSelectLocation={handleSelectLocation} />
@@ -251,34 +244,6 @@ const styles = StyleSheet.create({
   nativeAppleMapView: {
     width: "100%",
     height: "100%"
-  },
-  customBlueDotContainer: {
-    alignItems: "center",
-    justifyContent: "center",
-    width: 60,
-    height: 60
-  },
-  customBlueDotHalo: {
-    position: "absolute",
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    backgroundColor: "rgba(0, 122, 255, 0.25)",
-    borderWidth: 1.5,
-    borderColor: "rgba(0, 122, 255, 0.5)"
-  },
-  customBlueDotCore: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    backgroundColor: "#007AFF",
-    borderWidth: 3.5,
-    borderColor: "#FFFFFF",
-    shadowColor: "#000000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.35,
-    shadowRadius: 4,
-    elevation: 5
   },
   floatingControlsColumn: {
     position: "absolute",
