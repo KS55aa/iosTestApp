@@ -45,7 +45,6 @@ jobs:
             CODE_SIGN_IDENTITY="" \
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGNING_ALLOWED=NO \
-            OTHER_LDFLAGS="-Xlinker -headerpad_max_install_names" \
             clean build
 
       - name: Apply Ad-Hoc Signature
