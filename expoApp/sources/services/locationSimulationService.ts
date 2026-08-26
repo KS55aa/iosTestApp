@@ -8,6 +8,8 @@ import {
 export class LocationSimulationService {
   private static instance: LocationSimulationService;
 
+  private bridgeServerUrl: string = "http://192.168.178.56:8082";
+
   private currentCoordinates: GeographicCoordinates = {
     latitude: 52.516275,
     longitude: 13.377704
@@ -39,24 +41,48 @@ export class LocationSimulationService {
     };
   }
 
-  public activateSystemLocationSpoofing(
+  public async activateSystemLocationSpoofing(
     coordinates: GeographicCoordinates
-  ): SystemLocationSpoofingState {
+  ): Promise<SystemLocationSpoofingState> {
     this.setCoordinates(coordinates);
     this.spoofingState = {
       isActive: true,
       activeCoordinates: { ...coordinates },
       activatedTimestamp: Date.now()
     };
+
+    try {
+      await fetch(`${this.bridgeServerUrl}/set-location`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          latitude: coordinates.latitude,
+          longitude: coordinates.longitude
+        })
+      });
+    } catch {
+      return { ...this.spoofingState };
+    }
+
     return { ...this.spoofingState };
   }
 
-  public resetSystemLocationSpoofing(): SystemLocationSpoofingState {
+  public async resetSystemLocationSpoofing(): Promise<SystemLocationSpoofingState> {
     this.spoofingState = {
       isActive: false,
       activeCoordinates: null,
       activatedTimestamp: null
     };
+
+    try {
+      await fetch(`${this.bridgeServerUrl}/reset-location`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" }
+      });
+    } catch {
+      return { ...this.spoofingState };
+    }
+
     return { ...this.spoofingState };
   }
 
