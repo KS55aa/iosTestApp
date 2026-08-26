@@ -36,8 +36,10 @@ jobs:
       - name: Build Application Bundle
         run: |
           cd expoApp/ios
-          xcodebuild -workspace expoApp.xcworkspace \
-            -scheme expoApp \
+          WORKSPACE_NAME=$(ls -d *.xcworkspace | head -n 1)
+          SCHEME_NAME=$(basename "$WORKSPACE_NAME" .xcworkspace)
+          xcodebuild -workspace "$WORKSPACE_NAME" \
+            -scheme "$SCHEME_NAME" \
             -sdk iphoneos \
             -configuration Release \
             -destination "generic/platform=iOS" \
@@ -50,13 +52,15 @@ jobs:
       - name: Apply Ad-Hoc Signature
         run: |
           cd expoApp/ios
-          codesign --force --deep --sign - build/Build/Products/Release-iphoneos/expoApp.app
+          APP_PATH=$(find build/Build/Products/Release-iphoneos -name "*.app" -maxdepth 1 | head -n 1)
+          codesign --force --deep --sign - "$APP_PATH"
 
       - name: Package IPA Archive
         run: |
           cd expoApp/ios
           mkdir -p Payload
-          cp -r build/Build/Products/Release-iphoneos/expoApp.app Payload/
+          APP_PATH=$(find build/Build/Products/Release-iphoneos -name "*.app" -maxdepth 1 | head -n 1)
+          cp -r "$APP_PATH" Payload/
           zip -r expoApp.ipa Payload
 
       - name: Upload IPA Artifact

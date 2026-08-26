@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "LocationChanger",
-    "slug": "locationChanger",
+    "name": "expoApp",
+    "slug": "expoApp",
     "version": "1.0.0",
     "orientation": "portrait",
     "userInterfaceStyle": "automatic",
@@ -12,14 +12,6 @@
       "infoPlist": {
         "NSLocationWhenInUseUsageDescription": "Diese App benötigt Zugriff auf deinen Standort, um deine aktuelle Position auf Apple Maps anzuzeigen."
       }
-    },
-    "plugins": [
-      [
-        "expo-location",
-        {
-          "locationWhenInUsePermission": "Diese App benötigt Zugriff auf deinen Standort, um deine aktuelle Position auf Apple Maps anzuzeigen."
-        }
-      ]
-    ]
+    }
   }
 }
