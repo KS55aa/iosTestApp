@@ -8,7 +8,10 @@
 - System- und Gerätediagnose-Dienst (`deviceInformationService.swift`).
 - Konfigurationsressourcen (`info.plist`, App-Icon und Akzentfarben Asset-Kataloge).
 - Vollständiges, valides Xcode-Projekt (`project.pbxproj`) mit Shared Scheme (`testApp.xcscheme`).
-- CI/CD Build-Pipeline via GitHub Actions (`buildIpa.yml`) zur automatischen Erstellung und Bereitstellung der unsignierten `.ipa`-Datei.
+- CI/CD Build-Pipeline via GitHub Actions (`buildIpa.yml`) auf `macos-14`.
+- Remote-Repository auf GitHub erstellt: `https://github.com/KS55aa/iosTestApp`.
+- Automatischer GitHub Actions Build erfolgreich ausgeführt (Run ID: `32971592809`, Laufzeit: 35s).
+- Fertige `testApp.ipa` erfolgreich heruntergeladen und lokal abgelegt unter `buildArtifacts/testApp-ipa/testApp.ipa`.
 
 ### Features in Arbeit
 - Keine.
@@ -42,6 +45,7 @@
 - `iosApp/testApp.xcodeproj/project.pbxproj`: Xcode-Projektdatei zur Definition von Targets, Build Phases und Build Configurations.
 - `iosApp/testApp.xcodeproj/xcshareddata/xcschemes/testApp.xcscheme`: Shared Build Scheme für `xcodebuild`.
 - `.github/workflows/buildIpa.yml`: GitHub Actions Workflow für den automatisierten macOS-Runner Build.
+- `buildArtifacts/testApp-ipa/testApp.ipa`: Fertige kompilierte IPA-Datei für Sideloadly.
 - `progress.md`: Projektstatus, Architekturübersicht und Dokumentation.
 
 ### Zusammenspiel der Komponenten
@@ -71,7 +75,6 @@
 
 ## E) Nächste Schritte
 
-1. Remote-Repository via `gh repo create` erstellen und Code automatisch hochladen.
-2. GitHub Actions Build überwachen (`gh run watch`).
-3. Fertige `.ipa`-Datei direkt per `gh run download` lokal herunterladen.
-4. `.ipa` in Sideloadly öffnen und auf das iPhone übertragen.
+1. `testApp.ipa` in Sideloadly öffnen.
+2. iPhone per USB anschließen, Apple-ID eingeben und auf **Start** klicken.
+3. Entwicklermodus auf dem iPhone aktivieren und App testen.
