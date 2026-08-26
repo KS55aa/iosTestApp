@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
 import { View, StyleSheet, StatusBar, SafeAreaView, TouchableOpacity, Text } from "react-native";
-import { WebView, WebViewMessageEvent } from "react-native-webview";
+import MapView, { Marker, Region, PROVIDER_DEFAULT } from "react-native-maps";
 import {
   GeographicCoordinates,
   LocationInformation,
@@ -8,10 +8,7 @@ import {
   MovementSpeedPreset,
   AppleMapDisplayType
 } from "../models/locationTypes";
-import {
-  initialDefaultCoordinates,
-  generateAppleMapsHtml
-} from "../config/mapConfiguration";
+import { initialDefaultCoordinates } from "../config/mapConfiguration";
 import { LocationSimulationService } from "../services/locationSimulationService";
 import { GeocodingService } from "../services/geocodingService";
 import { SearchLocationBar } from "./searchLocationBar";
@@ -25,7 +22,7 @@ export const LocationMapScreen: React.FC = () => {
   const [locationInfo, setLocationInfo] = useState<LocationInformation | null>(null);
   const [mapDisplayType, setMapDisplayType] = useState<AppleMapDisplayType>("standard");
 
-  const webViewRef = useRef<WebView>(null);
+  const mapRef = useRef<MapView>(null);
   const simulationService = LocationSimulationService.getInstance();
   const geocodingService = GeocodingService.getInstance();
 
@@ -41,21 +38,16 @@ export const LocationMapScreen: React.FC = () => {
     updateLocationMetadata(initialDefaultCoordinates);
   }, [updateLocationMetadata]);
 
-  const handleMapMessage = (event: WebViewMessageEvent): void => {
-    try {
-      const messageData = JSON.parse(event.nativeEvent.data);
-      if (messageData.eventType === "locationSelected") {
-        const nextCoords: GeographicCoordinates = {
-          latitude: messageData.payload.latitude,
-          longitude: messageData.payload.longitude
-        };
-        simulationService.setCoordinates(nextCoords);
-        setCurrentCoordinates(nextCoords);
-        updateLocationMetadata(nextCoords);
-      }
-    } catch {
-      return;
-    }
+  const handleMapPress = (coords: GeographicCoordinates): void => {
+    simulationService.setCoordinates(coords);
+    setCurrentCoordinates(coords);
+    updateLocationMetadata(coords);
+  };
+
+  const handleMarkerDragEnd = (coords: GeographicCoordinates): void => {
+    simulationService.setCoordinates(coords);
+    setCurrentCoordinates(coords);
+    updateLocationMetadata(coords);
   };
 
   const handleSelectLocation = (
@@ -72,8 +64,14 @@ export const LocationMapScreen: React.FC = () => {
       timestamp: Date.now()
     });
 
-    const script = `window.updateMapPosition(${coords.latitude}, ${coords.longitude}, 15); true;`;
-    webViewRef.current?.injectJavaScript(script);
+    const targetRegion: Region = {
+      latitude: coords.latitude,
+      longitude: coords.longitude,
+      latitudeDelta: 0.012,
+      longitudeDelta: 0.012
+    };
+
+    mapRef.current?.animateToRegion(targetRegion, 800);
   };
 
   const handleJoystickMove = (
@@ -83,42 +81,77 @@ export const LocationMapScreen: React.FC = () => {
     const nextCoords = simulationService.calculateNextPosition(direction, speedPreset, 250);
     setCurrentCoordinates(nextCoords);
 
-    const script = `window.updateMapPosition(${nextCoords.latitude}, ${nextCoords.longitude}); true;`;
-    webViewRef.current?.injectJavaScript(script);
+    mapRef.current?.animateCamera(
+      {
+        center: {
+          latitude: nextCoords.latitude,
+          longitude: nextCoords.longitude
+        }
+      },
+      { duration: 250 }
+    );
   };
 
-  const handleCenterMap = (): void => {
-    const script = `window.centerOnMarker(); true;`;
-    webViewRef.current?.injectJavaScript(script);
+  const handleCenterOnMarker = (): void => {
+    const targetRegion: Region = {
+      latitude: currentCoordinates.latitude,
+      longitude: currentCoordinates.longitude,
+      latitudeDelta: 0.012,
+      longitudeDelta: 0.012
+    };
+    mapRef.current?.animateToRegion(targetRegion, 500);
   };
 
-  const handleLocateMe = (): void => {
-    const script = `window.locateUserDevice(); true;`;
-    webViewRef.current?.injectJavaScript(script);
+  const handleCenterOnUserLocation = (): void => {
+    mapRef.current?.animateToUserLocation?.({
+      latitudeDelta: 0.012,
+      longitudeDelta: 0.012
+    });
   };
 
   const toggleMapType = (): void => {
-    const nextType: AppleMapDisplayType = mapDisplayType === "standard" ? "satellite" : "standard";
-    setMapDisplayType(nextType);
-    const script = `window.setMapLayer('${nextType}'); true;`;
-    webViewRef.current?.injectJavaScript(script);
+    if (mapDisplayType === "standard") {
+      setMapDisplayType("satellite");
+    } else if (mapDisplayType === "satellite") {
+      setMapDisplayType("hybrid");
+    } else {
+      setMapDisplayType("standard");
+    }
   };
 
   return (
     <SafeAreaView style={styles.safeContainer}>
       <StatusBar barStyle="dark-content" />
       <View style={styles.mapWrapper}>
-        <WebView
-          ref={webViewRef}
-          source={{ html: generateAppleMapsHtml(initialDefaultCoordinates) }}
-          style={styles.webViewAppleMap}
-          onMessage={handleMapMessage}
-          javaScriptEnabled={true}
-          domStorageEnabled={true}
-          geolocationEnabled={true}
-          originWhitelist={["*"]}
-          scrollEnabled={false}
-        />
+        <MapView
+          ref={mapRef}
+          provider={PROVIDER_DEFAULT}
+          mapType={mapDisplayType}
+          style={styles.nativeAppleMapView}
+          initialRegion={{
+            latitude: initialDefaultCoordinates.latitude,
+            longitude: initialDefaultCoordinates.longitude,
+            latitudeDelta: 0.015,
+            longitudeDelta: 0.015
+          }}
+          showsUserLocation={true}
+          showsCompass={true}
+          showsScale={true}
+          showsBuildings={true}
+          onPress={(event) => handleMapPress(event.nativeEvent.coordinate)}
+        >
+          <Marker
+            coordinate={{
+              latitude: currentCoordinates.latitude,
+              longitude: currentCoordinates.longitude
+            }}
+            title={locationInfo?.cityName || "Simulierter Standort"}
+            description={locationInfo?.formattedAddress || ""}
+            draggable={true}
+            pinColor="#FF3B30"
+            onDragEnd={(event) => handleMarkerDragEnd(event.nativeEvent.coordinate)}
+          />
+        </MapView>
 
         <SearchLocationBar onSelectLocation={handleSelectLocation} />
 
@@ -129,13 +162,13 @@ export const LocationMapScreen: React.FC = () => {
             activeOpacity={0.8}
           >
             <Text style={styles.floatingIconText}>
-              {mapDisplayType === "standard" ? "🛰️" : "🗺️"}
+              {mapDisplayType === "standard" ? "🛰️" : mapDisplayType === "satellite" ? "🌐" : "🗺️"}
             </Text>
           </TouchableOpacity>
 
           <TouchableOpacity
             style={styles.floatingIconButton}
-            onPress={handleLocateMe}
+            onPress={handleCenterOnUserLocation}
             activeOpacity={0.8}
           >
             <Text style={styles.floatingIconText}>📍</Text>
@@ -147,7 +180,7 @@ export const LocationMapScreen: React.FC = () => {
         <LocationDetailsModal
           locationInfo={locationInfo}
           currentCoordinates={currentCoordinates}
-          onCenterMap={handleCenterMap}
+          onCenterMap={handleCenterOnMarker}
         />
       </View>
     </SafeAreaView>
@@ -163,9 +196,9 @@ const styles = StyleSheet.create({
     flex: 1,
     position: "relative"
   },
-  webViewAppleMap: {
-    flex: 1,
-    backgroundColor: "#F8F9FA"
+  nativeAppleMapView: {
+    width: "100%",
+    height: "100%"
   },
   floatingControlsColumn: {
     position: "absolute",
