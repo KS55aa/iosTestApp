@@ -45,7 +45,7 @@ export const quickLocationFavorites = [
   { name: "Dubai (Burj Khalifa)", latitude: 25.197197, longitude: 55.274376 }
 ];
 
-export function generateLeafletMapHtml(initialCoordinates: GeographicCoordinates): string {
+export function generateAppleMapsHtml(initialCoordinates: GeographicCoordinates): string {
   return `<!DOCTYPE html>
 <html>
 <head>
@@ -54,75 +54,101 @@ export function generateLeafletMapHtml(initialCoordinates: GeographicCoordinates
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <style>
-    html, body, #mapContainer {
+    html, body, #appleMapContainer {
       width: 100%;
       height: 100%;
       margin: 0;
       padding: 0;
-      background-color: #e5e5ea;
+      background-color: #F8F9FA;
       overflow: hidden;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Helvetica Neue", sans-serif;
     }
     .leaflet-control-zoom {
-      border: none !important;
-      box-shadow: 0 4px 14px rgba(0,0,0,0.15) !important;
-      border-radius: 12px !important;
-      overflow: hidden;
+      display: none !important;
     }
-    .customPulseMarker {
+    .applePinContainer {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+    }
+    .applePinHead {
+      width: 32px;
+      height: 32px;
+      background: radial-gradient(circle at 35% 35%, #FF453A, #D70015);
+      border: 2.5px solid #FFFFFF;
+      border-radius: 50% 50% 50% 0;
+      transform: rotate(-45deg);
+      box-shadow: 0 4px 12px rgba(215, 0, 21, 0.45), 0 2px 4px rgba(0,0,0,0.2);
       display: flex;
       align-items: center;
       justify-content: center;
     }
-    .markerCore {
-      width: 24px;
-      height: 24px;
-      background-color: #007aff;
-      border: 3px solid #ffffff;
+    .applePinInnerDot {
+      width: 9px;
+      height: 9px;
+      background-color: #FFFFFF;
       border-radius: 50%;
-      box-shadow: 0 2px 8px rgba(0, 122, 255, 0.5);
+      transform: rotate(45deg);
     }
-    .markerWave {
+    .applePinShadow {
+      width: 14px;
+      height: 5px;
+      background-color: rgba(0, 0, 0, 0.25);
+      border-radius: 50%;
+      margin-top: 4px;
+      filter: blur(1.5px);
+    }
+    .appleAccuracyHalo {
       position: absolute;
-      width: 48px;
-      height: 48px;
+      width: 90px;
+      height: 90px;
       border-radius: 50%;
-      background-color: rgba(0, 122, 255, 0.25);
-      animation: pulseAnimation 2s infinite ease-out;
+      background-color: rgba(0, 122, 255, 0.12);
+      border: 1px solid rgba(0, 122, 255, 0.25);
+      animation: pulseHalo 2.5s infinite ease-out;
+      pointer-events: none;
     }
-    @keyframes pulseAnimation {
-      0% { transform: scale(0.5); opacity: 1; }
-      100% { transform: scale(1.6); opacity: 0; }
+    @keyframes pulseHalo {
+      0% { transform: scale(0.6); opacity: 0.8; }
+      100% { transform: scale(1.4); opacity: 0; }
     }
   </style>
 </head>
 <body>
-  <div id="mapContainer"></div>
+  <div id="appleMapContainer"></div>
   <script>
     let mapInstance;
     let targetMarker;
+    let currentLayer;
 
     const initialLatitude = ${initialCoordinates.latitude};
     const initialLongitude = ${initialCoordinates.longitude};
 
-    mapInstance = L.map('mapContainer', {
+    mapInstance = L.map('appleMapContainer', {
       zoomControl: false,
-      attributionControl: false
+      attributionControl: false,
+      tap: true
     }).setView([initialLatitude, initialLongitude], 15);
 
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      maxZoom: 19
+    const standardAppleTiles = 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png';
+    const satelliteAppleTiles = 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}';
+
+    currentLayer = L.tileLayer(standardAppleTiles, {
+      maxZoom: 19,
+      subdomains: 'abcd'
     }).addTo(mapInstance);
 
-    const pulseIcon = L.divIcon({
-      className: 'customPulseMarker',
-      html: '<div class="markerWave"></div><div class="markerCore"></div>',
-      iconSize: [48, 48],
-      iconAnchor: [24, 24]
+    const applePinIcon = L.divIcon({
+      className: 'applePinContainer',
+      html: '<div class="appleAccuracyHalo"></div><div class="applePinHead"><div class="applePinInnerDot"></div></div><div class="applePinShadow"></div>',
+      iconSize: [40, 48],
+      iconAnchor: [20, 46]
     });
 
     targetMarker = L.marker([initialLatitude, initialLongitude], {
-      icon: pulseIcon,
+      icon: applePinIcon,
       draggable: true
     }).addTo(mapInstance);
 
@@ -167,6 +193,14 @@ export function generateLeafletMapHtml(initialCoordinates: GeographicCoordinates
     window.centerOnMarker = function() {
       if (mapInstance && targetMarker) {
         mapInstance.panTo(targetMarker.getLatLng(), { animate: true });
+      }
+    };
+
+    window.setMapLayer = function(layerType) {
+      if (mapInstance && currentLayer) {
+        mapInstance.removeLayer(currentLayer);
+        const tileUrl = layerType === 'satellite' ? satelliteAppleTiles : standardAppleTiles;
+        currentLayer = L.tileLayer(tileUrl, { maxZoom: 19, subdomains: 'abcd' }).addTo(mapInstance);
       }
     };
   </script>

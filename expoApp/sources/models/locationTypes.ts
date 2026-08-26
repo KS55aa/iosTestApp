@@ -45,3 +45,5 @@ export interface WaypointRecord {
   elevationMeters: number;
   timestampIso: string;
 }
+
+export type AppleMapDisplayType = "standard" | "satellite" | "hybrid";

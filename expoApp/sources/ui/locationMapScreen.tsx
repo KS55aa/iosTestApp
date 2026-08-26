@@ -1,15 +1,16 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
-import { View, StyleSheet, StatusBar, SafeAreaView } from "react-native";
+import { View, StyleSheet, StatusBar, SafeAreaView, TouchableOpacity, Text } from "react-native";
 import { WebView, WebViewMessageEvent } from "react-native-webview";
 import {
   GeographicCoordinates,
   LocationInformation,
   CardinalDirection,
-  MovementSpeedPreset
+  MovementSpeedPreset,
+  AppleMapDisplayType
 } from "../models/locationTypes";
 import {
   initialDefaultCoordinates,
-  generateLeafletMapHtml
+  generateAppleMapsHtml
 } from "../config/mapConfiguration";
 import { LocationSimulationService } from "../services/locationSimulationService";
 import { GeocodingService } from "../services/geocodingService";
@@ -22,6 +23,7 @@ export const LocationMapScreen: React.FC = () => {
     initialDefaultCoordinates
   );
   const [locationInfo, setLocationInfo] = useState<LocationInformation | null>(null);
+  const [mapDisplayType, setMapDisplayType] = useState<AppleMapDisplayType>("standard");
 
   const webViewRef = useRef<WebView>(null);
   const simulationService = LocationSimulationService.getInstance();
@@ -90,14 +92,21 @@ export const LocationMapScreen: React.FC = () => {
     webViewRef.current?.injectJavaScript(script);
   };
 
+  const toggleMapType = (): void => {
+    const nextType: AppleMapDisplayType = mapDisplayType === "standard" ? "satellite" : "standard";
+    setMapDisplayType(nextType);
+    const script = `window.setMapLayer('${nextType}'); true;`;
+    webViewRef.current?.injectJavaScript(script);
+  };
+
   return (
     <SafeAreaView style={styles.safeContainer}>
       <StatusBar barStyle="dark-content" />
       <View style={styles.mapWrapper}>
         <WebView
           ref={webViewRef}
-          source={{ html: generateLeafletMapHtml(initialDefaultCoordinates) }}
-          style={styles.webViewMap}
+          source={{ html: generateAppleMapsHtml(initialDefaultCoordinates) }}
+          style={styles.webViewAppleMap}
           onMessage={handleMapMessage}
           javaScriptEnabled={true}
           domStorageEnabled={true}
@@ -106,6 +115,16 @@ export const LocationMapScreen: React.FC = () => {
         />
 
         <SearchLocationBar onSelectLocation={handleSelectLocation} />
+
+        <TouchableOpacity
+          style={styles.mapTypeToggleFloatingButton}
+          onPress={toggleMapType}
+          activeOpacity={0.8}
+        >
+          <Text style={styles.mapTypeToggleText}>
+            {mapDisplayType === "standard" ? "🛰️ Satellit" : "🗺️ Karte"}
+          </Text>
+        </TouchableOpacity>
 
         <JoystickControlOverlay onMoveDirection={handleJoystickMove} />
 
@@ -128,8 +147,28 @@ const styles = StyleSheet.create({
     flex: 1,
     position: "relative"
   },
-  webViewMap: {
+  webViewAppleMap: {
     flex: 1,
-    backgroundColor: "#E5E5EA"
+    backgroundColor: "#F8F9FA"
+  },
+  mapTypeToggleFloatingButton: {
+    position: "absolute",
+    top: 155,
+    right: 16,
+    backgroundColor: "rgba(255, 255, 255, 0.95)",
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 20,
+    shadowColor: "#000000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+    elevation: 4,
+    zIndex: 90
+  },
+  mapTypeToggleText: {
+    fontSize: 11,
+    fontWeight: "700",
+    color: "#007AFF"
   }
 });
