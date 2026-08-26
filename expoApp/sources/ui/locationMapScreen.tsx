@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
-import { AppState, View, StyleSheet, StatusBar, SafeAreaView, TouchableOpacity, Text } from "react-native";
+import { Alert, AppState, View, StyleSheet, StatusBar, SafeAreaView, TouchableOpacity, Text } from "react-native";
 import MapView, { Marker, Region, PROVIDER_DEFAULT } from "react-native-maps";
 import {
   GeographicCoordinates,
@@ -7,7 +7,8 @@ import {
   AppleMapDisplayType
 } from "../models/locationTypes";
 import { initialDefaultCoordinates } from "../config/mapConfiguration";
-import { engineSetupAction, LocationSimulationService } from "../services/locationSimulationService";
+import { engineSetupAction } from "../services/locationSimulationService";
+import { locationControlService, locationEngineMode } from "../services/locationControlService";
 import { GeocodingService } from "../services/geocodingService";
 import { DeviceLocationService } from "../services/deviceLocationService";
 import { LocalFavoriteStorageService } from "../services/localFavoriteStorageService";
@@ -21,11 +22,12 @@ export const LocationMapScreen: React.FC = () => {
   );
   const [locationInfo, setLocationInfo] = useState<LocationInformation | null>(null);
   const [mapDisplayType, setMapDisplayType] = useState<AppleMapDisplayType>("standard");
-  const [spoofingState, setSpoofingState] = useState(() => LocationSimulationService.getInstance().getSpoofingState());
-  const [engineState, setEngineState] = useState(() => LocationSimulationService.getInstance().getEngineState());
+  const [spoofingState, setSpoofingState] = useState(() => locationControlService.getInstance().getSpoofingState());
+  const [engineState, setEngineState] = useState(() => locationControlService.getInstance().getEngineState());
   const [setupVisible, setSetupVisible] = useState(false);
   const [isOperationPending, setIsOperationPending] = useState(false);
   const [operationError, setOperationError] = useState<string | null>(null);
+  const [connectionError, setConnectionError] = useState<string | null>(null);
   const [favoritesRevision, setFavoritesRevision] = useState(0);
   const [isSavingFavorite, setIsSavingFavorite] = useState(false);
   const [favoriteMessage, setFavoriteMessage] = useState<string | null>(null);
@@ -36,7 +38,7 @@ export const LocationMapScreen: React.FC = () => {
   const isMounted = useRef(true);
 
   const mapRef = useRef<MapView>(null);
-  const simulationService = LocationSimulationService.getInstance();
+  const simulationService = locationControlService.getInstance();
   const geocodingService = GeocodingService.getInstance();
   const deviceLocationService = DeviceLocationService.getInstance();
 
@@ -46,12 +48,13 @@ export const LocationMapScreen: React.FC = () => {
       if (isMounted.current) {
         setEngineState(state);
         setSpoofingState(simulationService.getSpoofingState());
+        setConnectionError(null);
       }
     } catch (error: unknown) {
       if (isMounted.current) {
         setEngineState(simulationService.getEngineState());
         setSpoofingState(simulationService.getSpoofingState());
-        setOperationError(error instanceof Error ? error.message : "Engine-Zustand nicht verfügbar.");
+        setConnectionError(error instanceof Error ? error.message : "Engine-Zustand nicht verfügbar.");
       }
     }
   }, [simulationService]);
@@ -69,21 +72,41 @@ export const LocationMapScreen: React.FC = () => {
   }, [refreshEngine]);
 
   const handleSetupAction = async (action: engineSetupAction): Promise<void> => {
-    if (operationPending.current) { return; }
+    await runConnectionAction(() => simulationService.runSetupAction(action));
+  };
+
+  const runConnectionAction = async (action: () => Promise<unknown>): Promise<boolean> => {
+    if (operationPending.current) { return false; }
     operationPending.current = true;
     setIsOperationPending(true);
     setOperationError(null);
     try {
-      await simulationService.runSetupAction(action);
+      await action();
+      return true;
     } catch (error: unknown) {
       if (isMounted.current && (error as { code?: string })?.code !== "importCancelled") {
         setOperationError(error instanceof Error ? error.message : "Einrichtung fehlgeschlagen.");
       }
+      return false;
     } finally {
       await refreshEngine();
       operationPending.current = false;
       if (isMounted.current) { setIsOperationPending(false); }
     }
+  };
+
+  const handleModeChange = async (mode: locationEngineMode): Promise<void> => {
+    await runConnectionAction(() => simulationService.changeMode(mode));
+  };
+
+  const handleSaveGatewayToken = async (token: string): Promise<boolean> => {
+    let saved = false;
+    await runConnectionAction(async () => {
+      await simulationService.saveGatewayToken(token);
+      saved = true;
+      await simulationService.runSetupAction("prepare");
+    });
+    return saved;
   };
 
   const updateLocationMetadata = useCallback(
@@ -213,7 +236,14 @@ export const LocationMapScreen: React.FC = () => {
     if (operationPending.current) {
       return;
     }
-    if (!engineState.available || !engineState.hasPairing) {
+    if (engineState.mode === "gateway" && engineState.phase === "resetRequested") {
+      Alert.alert("Echter Standort sichtbar?", "Bestätige nur, wenn der blaue Standortpunkt in Apple Karten wieder deinen echten Standort zeigt. Eine erfolgreiche Serverantwort allein genügt nicht.", [
+        { text: "Noch nicht", style: "cancel" },
+        { text: "Ja, echter Standort", onPress: () => { void runConnectionAction(() => simulationService.confirmGatewayReset()); } }
+      ]);
+      return;
+    }
+    if (!engineState.available || (engineState.mode === "native" && !engineState.hasPairing)) {
       setSetupVisible(true);
       return;
     }
@@ -318,7 +348,7 @@ export const LocationMapScreen: React.FC = () => {
           {spoofingState.activeCoordinates && !isSelectedLocationActive && (
             <Marker
               coordinate={spoofingState.activeCoordinates}
-              title="Zuletzt von der Engine bestätigt"
+              title="Zuletzt quittierter Zielort"
               pinColor={engineState.phase === "active" ? "#007AFF" : "#8E8E93"}
             />
           )}
@@ -361,24 +391,30 @@ export const LocationMapScreen: React.FC = () => {
           locationInfo={locationInfo}
           currentCoordinates={currentCoordinates}
           isSpoofingActive={isSpoofingActive}
+          resetNeedsConfirmation={engineState.phase === "resetRequested"}
+          connectionLabel={engineState.mode === "gateway" ? "VPS über VPN · WLAN erforderlich" : "Native On-Device-Engine"}
           requiresReset={engineState.requiresReset}
-          engineAvailable={engineState.available && engineState.hasPairing}
-          isOperationPending={isOperationPending}
-          operationError={operationError}
+          engineAvailable={engineState.available && (engineState.mode === "gateway" || engineState.hasPairing)}
+          isOperationPending={isOperationPending || engineState.operationPending}
+          operationError={operationError || connectionError}
           isSavingFavorite={isSavingFavorite}
           favoriteMessage={favoriteMessage}
           onCenterMap={handleCenterOnMarker}
           onToggleSpoofing={handleToggleSpoofing}
           onSaveFavorite={handleSaveFavorite}
+          onRetryReset={async () => { await runConnectionAction(() => simulationService.resetSystemLocationSpoofing()); }}
         />
       </View>
       <EngineSetupSheet
         visible={setupVisible}
         state={engineState}
-        pending={isOperationPending}
-        error={operationError}
+        pending={isOperationPending || engineState.operationPending}
+        error={operationError || connectionError}
         onClose={() => setSetupVisible(false)}
         onAction={handleSetupAction}
+        onModeChange={handleModeChange}
+        onSaveToken={handleSaveGatewayToken}
+        onForgetToken={async () => { await runConnectionAction(() => simulationService.forgetGatewayToken()); }}
       />
     </SafeAreaView>
   );

@@ -28,7 +28,8 @@
           "isIosBackgroundLocationEnabled": true
         }
       ],
-      "./plugins/withLocationEngine.cjs"
+      "./plugins/withLocationEngine.cjs",
+      "expo-secure-store"
     ]
   }
 }

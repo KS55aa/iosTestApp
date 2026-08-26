@@ -2,6 +2,8 @@
 
 Stand: 26. August 2026
 
+Diese Anleitung beschreibt ausschließlich die weiterhin vorhandene native Swift-/Rust-Engine. Für den neu integrierten, in Expo Go verwendbaren Modus „VPS über VPN“ gilt [gatewaySetup.md](gatewaySetup.md). Dessen Tests unter iOS 26.6 beziehen sich auf den VPS-Dienst, nicht auf eine Erweiterung der unten beschriebenen nativen iOS-Unterstützung.
+
 ## Was implementiert ist
 
 Die Expo-App enthält einen nativen Swift-Adapter und einen Rust-Protokollkern für den CoreDevice-/DVT-Pfad auf iOS 17.4–18.x. Die Implementierung enthält reale Netzwerkoperationen und wartet bei Setzen und Zurücksetzen auf eine DVT-Antwort. Sie verwendet keine erfundene `CLLocationManager`-Setter-Methode.

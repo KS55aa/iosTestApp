@@ -2,6 +2,22 @@
 
 Stand: 26. August 2026
 
+## Aktueller Testmodus: Expo mit privatem VPS
+
+Die Kartenoberfläche hat zusätzlich den Modus „VPS über VPN“, standardmäßig ausgewählt, sofern kein ungeklärter Zustand der nativen Engine vorliegt. Der bisherige Swift-/Rust-Modus bleibt erhalten. Der neue Modus nutzt den getrennten, bereits bereitgestellten Python-Dienst mit dem installierten iPhone-IKEv2-Profil und benötigt für sich kein benutzerdefiniertes natives Expo-Modul.
+
+- Fest begrenzte private API-Adresse, Bearer-Authentifizierung, Zugangsschlüssel im iOS-Schlüsselbund über das SDK-54-kompatible `expo-secure-store`.
+- Verbindungstest, Setzen mit Koordinatenprüfung, Reset und ausdrückliche Benutzerbestätigung des echten Standorts.
+- Dauerhaftes Unsicherheitsjournal vor Standortoperationen, Anfragesperren, Zeitlimits, Schutz vor verspäteten Polling-Ergebnissen und vor Moduswechsel bei offenem Resetbedarf.
+- Bestehende MapKit-Karte, Suche und lokale Favoriten bleiben erhalten. Keine automatische Standortmutation beim Starten oder Testen.
+- 34 Service-Tests und Typecheck erfolgreich; die 20 bestehenden Tests bleiben erfolgreich.
+- Metro im LAN gestartet: `exp://192.168.178.56:8081`. Manifest und iOS-Bundle mit HTTP 200 geladen, tatsächlicher API-Schlüssel nicht im Bundle enthalten.
+- Neuer TypeScript-Client separat gegen den echten VPS getestet: authentifizierter Status und DVT-Leseanfrage erfolgreich unter iOS 26.6; keine neue Standortänderung. Rendering und Schlüsselbundzugriff auf dem iPhone noch nicht geprüft.
+
+WLAN bleibt für den geprüften Developer-Zugang erforderlich. Reiner Mobilfunk einschließlich eigenem Hotspot ist in den Tests fehlgeschlagen; der Benutzer hat anschließend die Integration des vorhandenen WLAN-Wegs beauftragt. Der laufende Dev-Server benötigt den lokalen PC; der Standortdienst selbst läuft auf dem VPS. Kein neuer IPA-Build, keine Veröffentlichung, keine Änderung am zuvor lokal geänderten GitHub-Workflow oder an bestehenden Veltic-Diensten.
+
+Einrichtung und Prüfgrenzen stehen in [gatewaySetup.md](gatewaySetup.md). Die nachfolgenden Abschnitte beschreiben den bisherigen nativen Modus.
+
 ## Implementiert
 
 Die Expo-App enthält jetzt einen nativen Swift-/Rust-Pfad für authentifizierte DVT-Standortsimulation. Zielbereich: physische iPhones mit iOS 17.4–18.x, initiales Computer-Pairing, Entwicklermodus und separates LocalDevVPN.

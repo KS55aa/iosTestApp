@@ -6,6 +6,8 @@ interface locationDetailsModalProps {
   locationInfo: LocationInformation | null;
   currentCoordinates: GeographicCoordinates;
   isSpoofingActive: boolean;
+  resetNeedsConfirmation: boolean;
+  connectionLabel: string;
   requiresReset: boolean;
   engineAvailable: boolean;
   isOperationPending: boolean;
@@ -15,12 +17,15 @@ interface locationDetailsModalProps {
   onCenterMap: () => void;
   onToggleSpoofing: () => Promise<void>;
   onSaveFavorite: () => Promise<void>;
+  onRetryReset: () => Promise<void>;
 }
 
 export const LocationDetailsModal: React.FC<locationDetailsModalProps> = ({
   locationInfo,
   currentCoordinates,
   isSpoofingActive,
+  resetNeedsConfirmation,
+  connectionLabel,
   requiresReset,
   engineAvailable,
   isOperationPending,
@@ -29,14 +34,17 @@ export const LocationDetailsModal: React.FC<locationDetailsModalProps> = ({
   favoriteMessage,
   onCenterMap,
   onToggleSpoofing,
-  onSaveFavorite
+  onSaveFavorite,
+  onRetryReset
 }) => {
   const statusLabel = isOperationPending
     ? "Standortoperation läuft …"
     : operationError
       ? "Standortänderung nicht bestätigt"
+      : resetNeedsConfirmation
+        ? "Reset gesendet · echten Standort in Apple Karten prüfen"
       : isSpoofingActive
-        ? "DVT-Befehl bestätigt · Developer-Verbindung aktiv"
+        ? "DVT-Befehl quittiert · Anzeige anderer Apps separat prüfen"
         : requiresReset
           ? "Systemzustand unbestätigt · bitte zurücksetzen"
           : "Zielort ausgewählt · keine Systemänderung bestätigt";
@@ -53,6 +61,7 @@ export const LocationDetailsModal: React.FC<locationDetailsModalProps> = ({
         {currentCoordinates.latitude.toFixed(5)}, {currentCoordinates.longitude.toFixed(5)}
       </Text>
       <Text style={styles.statusText} accessibilityLiveRegion="polite">{statusLabel}</Text>
+      <Text style={styles.statusText}>{connectionLabel}</Text>
       {operationError && <Text style={styles.errorText} accessibilityRole="alert">{operationError}</Text>}
       {favoriteMessage && <Text style={styles.statusText} accessibilityLiveRegion="polite">{favoriteMessage}</Text>}
       <View style={styles.buttonRow}>
@@ -79,11 +88,15 @@ export const LocationDetailsModal: React.FC<locationDetailsModalProps> = ({
         {isOperationPending && <ActivityIndicator color="#FFFFFF" size="small" />}
         <Text style={styles.primaryText}>
           {isOperationPending
-            ? "Native Operation läuft …"
+            ? "Anfrage läuft …"
             : !engineAvailable ? "Engine einrichten"
+              : resetNeedsConfirmation ? "Echten Standort bestätigen"
               : requiresReset ? "🔄 Standort zurücksetzen" : "📍 Standort setzen"}
         </Text>
       </TouchableOpacity>
+      {resetNeedsConfirmation && <TouchableOpacity style={styles.retryButton} onPress={onRetryReset} disabled={isOperationPending} accessibilityRole="button">
+        <Text style={styles.secondaryText}>Standort noch falsch? Reset erneut senden</Text>
+      </TouchableOpacity>}
     </View>
   );
 };
@@ -124,5 +137,6 @@ const styles = StyleSheet.create({
   },
   resetButton: { backgroundColor: "#B42318" },
   pendingButton: { opacity: 0.65 },
+  retryButton: { paddingVertical: 12, alignItems: "center" },
   primaryText: { color: "#FFFFFF", fontSize: 15, fontWeight: "600" }
 });

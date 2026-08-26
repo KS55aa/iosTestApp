@@ -1,22 +1,28 @@
 import React from "react";
 import { ActivityIndicator, Alert, Modal, SafeAreaView, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
-import { engineSetupAction, nativeEngineState } from "../services/locationSimulationService";
+import { engineSetupAction } from "../services/locationSimulationService";
+import { locationControlState, locationEngineMode } from "../services/locationControlService";
+import { gatewaySetupForm as GatewaySetupForm } from "./gatewaySetupForm";
 
 interface engineSetupProps {
   visible: boolean;
-  state: nativeEngineState;
+  state: locationControlState;
   pending: boolean;
   error: string | null;
   onClose: () => void;
   onAction: (action: engineSetupAction) => Promise<void>;
+  onModeChange: (mode: locationEngineMode) => Promise<void>;
+  onSaveToken: (token: string) => Promise<boolean>;
+  onForgetToken: () => Promise<void>;
 }
 
-export const EngineSetupSheet: React.FC<engineSetupProps> = ({ visible, state, pending, error, onClose, onAction }) => {
+export const EngineSetupSheet: React.FC<engineSetupProps> = ({ visible, state, pending, error, onClose, onAction, onModeChange, onSaveToken, onForgetToken }) => {
   const labels = {
     disconnected: "Nicht verbunden",
     ready: "DVT bereit",
     active: "Standortbefehl bestätigt",
-    unknown: "Systemzustand unbestätigt · Zurücksetzen erforderlich"
+    unknown: "Systemzustand unbestätigt · Zurücksetzen erforderlich",
+    resetRequested: "Reset gesendet · echten Standort noch bestätigen"
   };
   const actionButton = (label: string, action: engineSetupAction, disabled = false): React.ReactElement => (
     <TouchableOpacity
@@ -37,17 +43,30 @@ export const EngineSetupSheet: React.FC<engineSetupProps> = ({ visible, state, p
   };
 
   return (
-    <Modal visible={visible} animationType="slide" presentationStyle="fullScreen" onRequestClose={() => { if (!pending) { onClose(); } }}>
+    <Modal visible={visible} animationType="fade" presentationStyle="fullScreen" onRequestClose={() => { if (!pending) { onClose(); } }}>
       <SafeAreaView style={styles.container}>
         <View style={styles.header}>
-          <Text style={styles.title}>Engine einrichten</Text>
+          <Text style={styles.title}>Verbindung</Text>
           <TouchableOpacity onPress={onClose} disabled={pending} accessibilityRole="button" style={[styles.closeButton, pending && styles.disabled]}>
             <Text style={styles.buttonText}>Fertig</Text>
           </TouchableOpacity>
         </View>
-        <ScrollView contentContainerStyle={styles.content}>
+        <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" automaticallyAdjustKeyboardInsets>
+          <View style={styles.modeRow}>
+            {(["gateway", "native"] as const).map((mode) => <TouchableOpacity
+              key={mode}
+              style={[styles.modeButton, mode === state.mode && styles.selectedMode, (pending || state.requiresReset) && styles.disabled]}
+              disabled={pending || state.requiresReset}
+              onPress={() => { void onModeChange(mode); }}
+              accessibilityRole="button"
+              accessibilityState={{ selected: mode === state.mode, disabled: pending || state.requiresReset }}
+            ><Text style={styles.buttonText}>{mode === "gateway" ? "VPS über VPN" : "Native Engine"}</Text></TouchableOpacity>)}
+          </View>
           <Text style={styles.status} accessibilityLiveRegion="polite">{labels[state.phase]}</Text>
           <Text style={styles.text}>{state.transport}</Text>
+          {pending && <View style={styles.pending}><ActivityIndicator /><Text style={styles.text}>Anfrage läuft …</Text></View>}
+          {error && <Text style={styles.error} accessibilityRole="alert">{error}</Text>}
+          {state.mode === "gateway" ? <GatewaySetupForm visible={visible} state={state} pending={pending} onSaveToken={onSaveToken} onForgetToken={onForgetToken} onProbe={() => onAction("prepare")} /> : <>
           {!state.available && <Text style={styles.error}>Das native Modul fehlt. Installiere eine neu gebaute, signierte IPA. Expo Go enthält diese Engine nicht.</Text>}
           {state.available && !state.supported && <Text style={styles.error}>Benötigt ein echtes iPhone mit iOS 17.4–18.x. Andere Versionen und der Simulator sind gesperrt.</Text>}
 
@@ -69,8 +88,6 @@ export const EngineSetupSheet: React.FC<engineSetupProps> = ({ visible, state, p
           <Text style={styles.sectionTitle}>4. Verbindung prüfen</Text>
           {actionButton("DVT-Verbindung vorbereiten", "prepare", !state.supported || !state.hasPairing)}
           <Text style={styles.text}>Die Vorbereitung kann beim ersten Mounten einige Minuten dauern. Danach wählst du auf der Karte den Zielort und drückst „Standort setzen“.</Text>
-          {pending && <View style={styles.pending}><ActivityIndicator /><Text style={styles.text}>Native Operation läuft …</Text></View>}
-          {error && <Text style={styles.error} accessibilityRole="alert">{error}</Text>}
 
           <Text style={styles.sectionTitle}>Beim App-Wechsel</Text>
           <Text style={styles.text}>Standortzugriff im Hintergrund: {state.backgroundAuthorized ? "erlaubt" : "nicht dauerhaft erlaubt"}. iOS kann die App trotzdem unterbrechen. Die Engine prüft beim Zurückkehren den Tunnel erneut.</Text>
@@ -84,6 +101,7 @@ export const EngineSetupSheet: React.FC<engineSetupProps> = ({ visible, state, p
             onPress={forgetPairing}
             accessibilityRole="button"
           ><Text style={styles.deleteText}>Pairing vom Gerät löschen</Text></TouchableOpacity>}
+          </>}
         </ScrollView>
       </SafeAreaView>
     </Modal>
@@ -105,5 +123,8 @@ const styles = StyleSheet.create({
   disabled: { opacity: 0.4 },
   error: { fontSize: 14, lineHeight: 21, color: "#B42318", marginVertical: 10 },
   deleteText: { fontSize: 15, color: "#B42318" },
-  pending: { flexDirection: "row", alignItems: "center", gap: 12, marginTop: 12 }
+  pending: { flexDirection: "row", alignItems: "center", gap: 12, marginTop: 12 },
+  modeRow: { flexDirection: "row", gap: 8, marginBottom: 20 },
+  modeButton: { flex: 1, padding: 12, borderBottomWidth: 2, borderBottomColor: "transparent" },
+  selectedMode: { borderBottomColor: "#007AFF" }
 });
