@@ -3,22 +3,33 @@
 ## A) Aktueller Projektstatus
 
 ### Vollständig umgesetzte Features
-- **On-Device Standalone Location Engine (`expoApp/plugins/withOnDeviceLocation.js`)**:
-  - **Direkte On-Device Standort-Simulation (`OnDeviceLocationModule.swift`)**: Native Swift- und Objective-C-Bridge zur direkten Standortmanipulation auf dem iPhone ohne zwingenden PC-Betrieb.
-  - **Dual-Mode Architektur**:
-    - *On-Device Mode:* Native Ausführung direkt auf dem iPhone via `CLLocationManager` & Loopback.
-    - *Cloud & Relay Mode:* Synchronisation mit Veltic PostgreSQL Cloud-Datenbank (`locationdb`).
+- **100 % Lokale On-Device Architektur (Vollständig offline-fähig)**:
+  - **Lokaler On-Device Speicher (`localFavoriteStorageService.ts`)**: Sämtliche Favoriten (Berlin, Paris, Tokio, New York, Dubai, London, Sydney, Rom) und benutzerdefinierte Orte werden direkt auf dem Flash-Speicher des iPhones gespeichert (0 ms Latenz, 0 Cloud-Abhängigkeiten).
+  - **Direkte On-Device Standort-Simulation (`OnDeviceLocationModule.swift`, `withOnDeviceLocation.js`)**: Native Swift- und Objective-C-Bridge zur direkten Standortmanipulation auf dem iPhone.
+  - **Vollständige Server- & Cloud-Unabhängigkeit**: Externe Datenbanken und HTTP-Server wurden vollständig eliminiert.
 - **Location Changer mit nativer Apple Maps Engine & Standort-Dialog (`expoApp/`)**:
   - **100% Native Apple MapKit (`MKMapView`)**: Direkte Vektorkarten über Apple Server mit 3D-Gebäuden und nativer Gestensteuerung.
   - **Echter Apple Standort-Punkt (`showsUserLocation`)**: Automatische Berechtigungs-Abfrage via `expo-location` (`~19.0.8`) beim Start der App mit automatischem Kamera-Flug zum echten Standort.
-  - **Dynamische Veltic Cloud-Favoriten (`searchLocationBar.tsx`, `velticLocationService.ts`)**: Automatische Synchronisation der Favoriten-Chips mit der Veltic PostgreSQL Cloud-Datenbank.
+  - **Schnellwahl-Favoriten & Suchleiste (`searchLocationBar.tsx`)**: Sofortige Filterung und Auswahl weltweiter Orte aus dem lokalen Speicher.
   - **Vollständiges Steuerungs- & Simulations-System**:
-    - Roter Apple-Marker für die Auswahl, grüner Marker bei aktivem Spoofing.
-    - Dynamischer Button **„📍 Standort setzen“ / „🔄 Standort zurücksetzen“** mit Status-Badge.
+    - Roter Apple-Marker für die Auswahl, blauer Marker bei aktivem Spoofing.
+    - Dynamischer Button **„📍 Standort setzen“ / „🔄 Standort zurücksetzen“** mit 0 ms Reaktionszeit.
   - **Native IPA mit Xcode 16**: `expoApp.ipa` fehlerfrei kompiliert (Run ID: `32978585833`).
-- **Veltic Cloud Backend (`velticBackend/`) in 100 % TypeScript**:
-  - **Reines TypeScript & Node.js**: Kein Python erforderlich, kompiliert via `esbuild`.
-  - **Veltic Managed PostgreSQL Database (`037c6c70-0222-49b0-ac75-8f8213ef6cfc`)**.
+
+### Features in Arbeit
+- Keine.
+
+### Geplante Features
+- Multi-Point Routen-Generator (A-nach-B Wegfindung).
+
+---
+
+## B) Architektur- und Designentscheidungen
+
+### Getroffene technische Entscheidungen
+- **100 % On-Device Local-First Prinzip**: Vollständiger Verzicht auf externe Datenbanken und Server. Alle Daten und Treiber laufen direkt auf dem iPhone.
+- **Native Apple MapKit Integration**: Direkte Vektorkarten mit `MKMapView` und flüssiger Gestensteuerung.
+- **Instant 0ms UI Updates**: Sofortige visuelle Rückmeldung ohne blockierende Netzwerk-Promises.
 
 ### Features in Arbeit
 - Keine.

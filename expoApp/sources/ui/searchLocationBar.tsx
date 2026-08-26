@@ -10,7 +10,10 @@ import {
 } from "react-native";
 import { GeographicCoordinates, GeocodingSearchResult } from "../models/locationTypes";
 import { GeocodingService } from "../services/geocodingService";
-import { VelticLocationService, VelticFavoriteLocation } from "../services/velticLocationService";
+import {
+  LocalFavoriteStorageService,
+  FavoriteLocationItem
+} from "../services/localFavoriteStorageService";
 
 interface SearchLocationBarProps {
   onSelectLocation: (coordinates: GeographicCoordinates, placeName: string) => void;
@@ -22,18 +25,14 @@ export const SearchLocationBar: React.FC<SearchLocationBarProps> = ({
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [searchResults, setSearchResults] = useState<GeocodingSearchResult[]>([]);
   const [isSearching, setIsSearching] = useState<boolean>(false);
-  const [favoritesList, setFavoritesList] = useState<VelticFavoriteLocation[]>([]);
+  const [favoritesList, setFavoritesList] = useState<FavoriteLocationItem[]>([]);
 
   const geocodingService = GeocodingService.getInstance();
-  const velticService = VelticLocationService.getInstance();
+  const localStorageService = LocalFavoriteStorageService.getInstance();
 
   useEffect(() => {
-    velticService.fetchFavoriteLocations().then((items) => {
-      if (items.length > 0) {
-        setFavoritesList(items);
-      }
-    });
-  }, [velticService]);
+    setFavoritesList(localStorageService.getFavoriteLocations());
+  }, [localStorageService]);
 
   const handleSearch = async (text: string): Promise<void> => {
     setSearchQuery(text);
@@ -105,7 +104,7 @@ export const SearchLocationBar: React.FC<SearchLocationBarProps> = ({
             horizontal={true}
             showsHorizontalScrollIndicator={false}
             data={favoritesList}
-            keyExtractor={(item) => String(item.id)}
+            keyExtractor={(item) => item.id}
             renderItem={({ item }) => (
               <TouchableOpacity
                 style={styles.favoriteChip}

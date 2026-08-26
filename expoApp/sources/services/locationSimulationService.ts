@@ -11,8 +11,6 @@ const { OnDeviceLocationModule } = NativeModules;
 export class LocationSimulationService {
   private static instance: LocationSimulationService;
 
-  private velticApiUrl: string = "http://192.168.178.56:8082";
-
   private currentCoordinates: GeographicCoordinates = {
     latitude: 52.516275,
     longitude: 13.377704
@@ -63,21 +61,6 @@ export class LocationSimulationService {
       } catch {}
     }
 
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 1200);
-
-    fetch(`${this.velticApiUrl}/set-location`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      signal: controller.signal,
-      body: JSON.stringify({
-        latitude: coordinates.latitude,
-        longitude: coordinates.longitude
-      })
-    })
-      .catch(() => {})
-      .finally(() => clearTimeout(timeoutId));
-
     return { ...this.spoofingState };
   }
 
@@ -93,17 +76,6 @@ export class LocationSimulationService {
         OnDeviceLocationModule.resetLocation();
       } catch {}
     }
-
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 1200);
-
-    fetch(`${this.velticApiUrl}/reset-location`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      signal: controller.signal
-    })
-      .catch(() => {})
-      .finally(() => clearTimeout(timeoutId));
 
     return { ...this.spoofingState };
   }
