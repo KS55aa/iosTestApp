@@ -3,34 +3,30 @@
 ## A) Aktueller Projektstatus
 
 ### Vollständig umgesetzte Features
-- Native SwiftUI Test-App mit modularer Struktur für iOS 16+.
-- Interaktive Benutzeroberfläche zur Funktions- und Sideload-Verifikation (`contentView.swift`).
-- System- und Gerätediagnose-Dienst (`deviceInformationService.swift`).
-- Konfigurationsressourcen (`info.plist`, App-Icon und Akzentfarben Asset-Kataloge).
-- Vollständiges, valides Xcode-Projekt (`project.pbxproj`) mit Shared Scheme (`testApp.xcscheme`).
-- CI/CD Build-Pipeline via GitHub Actions (`buildIpa.yml`) auf `macos-14` mit Ad-Hoc Signierung.
-- Remote-Repository auf GitHub erstellt: `https://github.com/KS55aa/iosTestApp`.
-- GitHub Actions Build erfolgreich ausgeführt (Run ID: `32972363614`, Laufzeit: 22s).
-- Validierte `testApp.ipa` lokal heruntergeladen.
-- **Erfolgreiche Installation via Sideloadly auf das iPhone (`kerem`) abgeschlossen (`Installing 100%: Complete - Done.`).**
+- **Native SwiftUI App (`iosApp/`)**: Vollständige native Test-App mit `project.pbxproj`, Ad-Hoc Signierung und CI/CD Pipeline.
+- **Expo & React Native App (`expoApp/`)**:
+  - Vollständiges Expo TypeScript Projekt mit `App.tsx`, `contentView.tsx` und `deviceInformationService.ts`.
+  - Replikation sämtlicher Testfunktionen (Dashboard, Systemdiagnose, Interaktionszähler, Toggles).
+  - Unterstützung für Live-Hot-Reload via **Expo Go** (`npx expo start`).
+- **CI/CD Build-Pipelines via GitHub Actions**:
+  - `buildIpa.yml`: Native SwiftUI App `.ipa`-Generierung.
+  - `buildExpoIpa.yml`: Expo iOS `.ipa`-Generierung via `npx expo prebuild` und `xcodebuild` mit Ad-Hoc Codesignatur für Sideloadly.
+- Remote-Repository auf GitHub: `https://github.com/KS55aa/iosTestApp`.
 
 ### Features in Arbeit
-- Keine.
+- Build und Bereitstellung der `expoApp.ipa`.
 
 ### Geplante Features
-- Erweiterte Hardware-Tests (Kamera, Sensoren, Haptik).
-- Optionale Signierung direkt im CI/CD-Prozess über GitHub Secrets (falls Apple Developer Account vorhanden).
+- EAS Build Cloud Integration.
 
 ---
 
 ## B) Architektur- und Designentscheidungen
 
 ### Getroffene technische Entscheidungen
-- **SwiftUI & iOS 16.0+ Target**: Verwendung von modernem, deklarativem UI-Framework ohne Storyboards für maximale Stabilität und Code-Klarheit.
-- **Entkopplung der Services**: Auslagerung von Systemabfragen in dedizierte Singleton-Dienste (`deviceInformationService`), um UI und Logik sauber zu trennen.
-- **Unsignierter Release-Build im CI**: `CODE_SIGNING_ALLOWED=NO` und `CODE_SIGNING_REQUIRED=NO` in GitHub Actions ermöglichen den Build ohne Zertifikate. Das Signieren wird clientseitig von Sideloadly via Apple-ID durchgeführt.
-- **Standardisiertes IPA-Packaging**: Kompilierte App wird in das Verzeichnis `Payload/` überführt und als Standard-ZIP-Archiv mit `.ipa`-Endung gepackt.
-- **GitHub CLI Integration**: Authentifizierung über Account `KS55aa` vorhanden für automatisierte Repository-Erstellung, Workflow-Triggerung und direkten Artefakt-Download.
+- **Parallele Architekturen**: Bereitstellung sowohl der nativen Swift-App (`iosApp/`) als auch der modernen Expo/React Native App (`expoApp/`) im selben Repository.
+- **Prebuild-Strategie für Expo**: `npx expo prebuild --platform ios` generiert das native iOS Xcode-Projekt on-the-fly im CI-Runner, wodurch kein riesiges `ios/`-Verzeichnis im Git gepflegt werden muss.
+- **Ad-Hoc Signierung für Sideloadly**: Auch bei Expo wird das erzeugte Bundle via `codesign --force --deep --sign -` mit einem `LC_CODE_SIGNATURE`-Header versehen.
 
 ---
 
@@ -38,16 +34,13 @@
 
 ### Übersicht der Dateien und Verantwortlichkeiten
 
-- `iosApp/sources/app/testApp.swift`: Einstiegspunkt der SwiftUI-Applikation (`@main`).
-- `iosApp/sources/ui/contentView.swift`: Darstellung der Benutzeroberfläche, Statusanzeigen, Interaktionszähler und Bestätigungs-Toggles.
-- `iosApp/sources/services/deviceInformationService.swift`: Service zur Erfassung von Systemdaten (iOS-Version, Batteriestatus, Bildschirmauflösung).
-- `iosApp/resources/info.plist`: App-Metadaten, Bundle Identifier und Konfiguration der UI-Szenen.
-- `iosApp/resources/assets.xcassets/`: Asset-Kataloge für App-Icons und Akzentfarben.
-- `iosApp/testApp.xcodeproj/project.pbxproj`: Xcode-Projektdatei zur Definition von Targets, Build Phases und Build Configurations.
-- `iosApp/testApp.xcodeproj/xcshareddata/xcschemes/testApp.xcscheme`: Shared Build Scheme für `xcodebuild`.
-- `.github/workflows/buildIpa.yml`: GitHub Actions Workflow für den automatisierten macOS-Runner Build.
-- `buildArtifacts/testApp-ipa/testApp.ipa`: Fertige kompilierte IPA-Datei für Sideloadly.
-- `progress.md`: Projektstatus, Architekturübersicht und Dokumentation.
+- `expoApp/App.tsx`: Einstiegspunkt der Expo React Native App.
+- `expoApp/sources/ui/contentView.tsx`: Responsive Benutzeroberfläche für Expo.
+- `expoApp/sources/services/deviceInformationService.ts`: Diagnose-Dienst für Plattform- und Display-Informationen.
+- `expoApp/package.json` & `app.json` & `tsconfig.json`: Projektkonfiguration für Expo SDK 52.
+- `.github/workflows/buildExpoIpa.yml`: Automatisierte CI/CD Pipeline zur Kompilierung der Expo `.ipa`.
+- `iosApp/`: Vorherige native Swift Test-App.
+- `progress.md`: Projektstatus und Gesamtdokumentation.
 
 ### Zusammenspiel der Komponenten
 - `testApp.swift` instanziiert `ContentView`.

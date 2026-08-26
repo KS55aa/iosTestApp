@@ -1,0 +1,14 @@
+{
+  "expo": {
+    "name": "expoApp",
+    "slug": "expoApp",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": false,
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.testlab.expoApp"
+    }
+  }
+}

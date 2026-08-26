@@ -1,0 +1,68 @@
+name: Build Expo iOS IPA
+
+on:
+  push:
+    branches:
+      - main
+      - master
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-14
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node Environment
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Select Xcode Version
+        run: sudo xcode-select -switch /Applications/Xcode_15.4.app
+
+      - name: Install Dependencies
+        run: |
+          cd expoApp
+          npm install
+
+      - name: Prebuild Native iOS Project
+        run: |
+          cd expoApp
+          npx expo prebuild --platform ios --clean
+
+      - name: Build Application Bundle
+        run: |
+          cd expoApp/ios
+          xcodebuild -workspace expoApp.xcworkspace \
+            -scheme expoApp \
+            -sdk iphoneos \
+            -configuration Release \
+            -destination "generic/platform=iOS" \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=NO \
+            OTHER_LDFLAGS="-Xlinker -headerpad_max_install_names" \
+            CONFIGURATION_BUILD_DIR=build \
+            clean build
+
+      - name: Apply Ad-Hoc Signature
+        run: |
+          cd expoApp/ios
+          codesign --force --deep --sign - build/expoApp.app
+
+      - name: Package IPA Archive
+        run: |
+          cd expoApp/ios
+          mkdir -p Payload
+          cp -r build/expoApp.app Payload/
+          zip -r expoApp.ipa Payload
+
+      - name: Upload IPA Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: expoApp-ipa
+          path: expoApp/ios/expoApp.ipa
+          retention-days: 7
